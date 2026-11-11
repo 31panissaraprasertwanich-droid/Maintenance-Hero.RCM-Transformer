@@ -86,7 +86,7 @@ body.touch #prompt{bottom:160px}
   #panel{top:auto;height:74vh;width:100%;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0}
   .chip{min-width:74px;padding:4px 7px}.chips{max-width:calc(100vw - 180px)}
   #timeLbl{font-size:20px}.clockbox{min-width:110px;padding:5px 8px}
-  #hud{flex-wrap:wrap}#rightCol{width:170px}#tracker{font-size:11.5px}
+  #tracker{font-size:11.5px}
   .kpis{grid-template-columns:repeat(2,1fr)}
 }
 
@@ -122,6 +122,13 @@ body.touch #prompt{bottom:160px}
 #emg{position:fixed;top:84px;left:50%;transform:translateX(-50%);padding:10px 16px;z-index:5;border-color:#a33;background:#3a0d0ddd;font-size:13px;min-width:300px;animation:pulse 1.4s infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 4px #f8514955}}
 #emg~#toasts{top:200px}
+body.hudmin #mini,body.hudmin #tracker,body.hudmin #minilog{display:none!important}
+body.touch .chip .lbl{display:none}body.touch .chip{min-width:0;padding:3px 7px}body.touch .chips{gap:4px;max-width:44vw}body.touch .sl{gap:4px;font-size:11px}body.touch .sl b{font-size:12px}body.touch .sb{margin-top:2px}
+body.touch .clockbox{min-width:0;padding:3px 8px;max-width:30vw}body.touch #timeLbl{font-size:18px}body.touch #dayLbl,body.touch #phaseLbl{font-size:10px;line-height:1.25}
+body.touch #rightCol{width:auto;max-width:34vw}body.touch .hbtns{flex-wrap:wrap;justify-content:flex-end;gap:4px}body.touch .hbtns button{padding:4px 6px;font-size:13px}
+body.touch #mini{width:150px;height:102px}body.touch #tracker{font-size:11px;max-height:28vh;overflow:auto;padding:6px 8px}body.touch #toasts{top:auto;bottom:150px}body.touch .toast{font-size:12.5px}
+@media(max-width:760px){.chip .lbl{display:none}.chip{min-width:0;padding:4px 7px}.chips{gap:4px}.sl{gap:4px}.hbtns button{padding:6px 7px;font-size:13px}#mini{width:170px;height:116px}}
+@media(max-height:500px){#hud{padding:6px}.chip{padding:3px 6px}#mini{width:160px;height:108px}#tracker{max-height:110px;overflow:auto}#prompt{bottom:100px}#joy{width:110px;height:110px;left:14px;bottom:14px}#useBtn{bottom:20px}#runBtn{bottom:28px}#panel{width:min(460px,60%);height:100%;top:0;border-radius:0}}
 </style>
 </head>
 <body>
@@ -131,7 +138,7 @@ body.touch #prompt{bottom:160px}
   <div class="chips" id="stats"></div>
   <div class="glass clockbox"><div id="dayLbl"></div><div id="timeLbl"></div><div id="phaseLbl"></div></div>
   <div id="rightCol">
-    <div class="hbtns"><button data-a="mute" id="muteBtn" title="เสียง">🔊</button><button data-a="tspeed" id="tsBtn" title="ความเร็วเวลา">🚶</button><button data-a="phone" class="bdg" title="โทรศัพท์ (P)">📱<i id="phbadge"></i></button><button data-a="status" title="สถานะ">📋</button><button data-a="help" title="คู่มือ">📘</button><button data-a="reset" title="เริ่มใหม่">↺</button></div>
+    <div class="hbtns"><button data-a="gfx" id="gfxBtn" title="คุณภาพกราฟิก">⚙️</button><button data-a="hudmin" title="ย่อ/ขยายแผนที่และรายการงาน">🗂️</button><button data-a="mute" id="muteBtn" title="เสียง">🔊</button><button data-a="tspeed" id="tsBtn" title="ความเร็วเวลา">🚶</button><button data-a="phone" class="bdg" title="โทรศัพท์ (P)">📱<i id="phbadge"></i></button><button data-a="status" title="สถานะ">📋</button><button data-a="help" title="คู่มือ">📘</button><button data-a="reset" title="เริ่มใหม่">↺</button></div>
     <canvas id="mini" width="250" height="170"></canvas>
     <div id="tracker" class="glass"></div>
   </div>
@@ -735,7 +742,7 @@ function restart(){Q=[];try{localStorage.removeItem(SAVE);}catch(e){}location.re
 /* =====================================================================
    UI RENDER
    ===================================================================== */
-function stat(icon,label,val,max,color,txt){return `<div class="glass chip"><div class="sl">${icon} ${label}<b>${txt??Math.round(val)}</b></div><div class="sb"><i style="width:${clamp(val/max*100,0,100)}%;background:${color}"></i></div></div>`;}
+function stat(icon,label,val,max,color,txt){return `<div class="glass chip"><div class="sl">${icon} <span class="lbl">${label}</span><b>${txt??Math.round(val)}</b></div><div class="sb"><i style="width:${clamp(val/max*100,0,100)}%;background:${color}"></i></div></div>`;}
 const TSP=[[4,'🐢','ช้ามาก (1 นาทีเกม = 4 วินาที)'],[2.5,'🚶','ปกติ (1 นาทีเกม = 2.5 วินาที)'],[1.5,'🏃','เร็ว (1 นาทีเกม = 1.5 วินาที)'],[1,'🐇','เร็วมาก (1 นาทีเกม = 1 วินาที)']];
 const PHL={morning:'🌅 เช้า — เตรียมไปทำงาน',work:'🏭 เวลางาน',ot:'🌙 ทำ OT',evening:'🌆 หลังเลิกงาน',holiday:'🌴 วันหยุด',sleep:'😴 นอนหลับ'};
 function hud(){
@@ -1260,9 +1267,12 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>{keys[e.code]=false;});addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 (function(){
   const cv=$('#c');let drag=null;
-  cv.addEventListener('pointerdown',e=>{drag={id:e.pointerId,x:e.clientX,y:e.clientY};W.dragging=true;cv.setPointerCapture(e.pointerId);cv.focus();});
-  cv.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;W.yaw-=(e.clientX-drag.x)*.006;W.pitch=clamp(W.pitch+(e.clientY-drag.y)*.004,.12,1.25);drag.x=e.clientX;drag.y=e.clientY;});
-  const end=e=>{if(drag&&drag.id===e.pointerId){drag=null;W.dragging=false;}};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  const ptrs=new Map();let pinch0=0,dist0=0;
+  cv.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});try{cv.setPointerCapture(e.pointerId);}catch(_){}cv.focus();W.dragging=true;if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch0=Math.hypot(a.x-b.x,a.y-b.y);dist0=W.dist;}});
+  cv.addEventListener('pointermove',e=>{const pt=ptrs.get(e.pointerId);if(!pt)return;
+    if(ptrs.size>=2){pt.x=e.clientX;pt.y=e.clientY;const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch0>10)W.dist=clamp(dist0*pinch0/d,3,16);return;}
+    W.yaw-=(e.clientX-pt.x)*.006;W.pitch=clamp(W.pitch+(e.clientY-pt.y)*.004,.12,1.25);pt.x=e.clientX;pt.y=e.clientY;});
+  const end=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch0=0;if(!ptrs.size)W.dragging=false;};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
   cv.addEventListener('wheel',e=>{W.dist=clamp(W.dist+e.deltaY*.008,3,16);e.preventDefault();},{passive:false});
   if('ontouchstart' in window||navigator.maxTouchPoints>0)document.body.classList.add('touch');
   const jz=$('#joy'),kn=$('#knob');
@@ -1347,6 +1357,8 @@ document.addEventListener('click',e=>{
   if(a==='status')return openPanel(statusPanel);
   if(a==='phone'){if(!W.traveling&&S.phase!=='sleep'&&!S.over)PH.open?phoneClose():phoneOpen();return;}
   if(a==='phclose')return phoneClose();
+  if(a==='gfx'){S.gfx=S.gfx==='low'?'high':'low';applyGfx();toast(S.gfx==='low'?'⚙️ กราฟิกต่ำ: ปิดเงา ลดฝน — ลื่นขึ้น':'⚙️ กราฟิกสูง: เงาและเอฟเฟกต์เต็ม','');save();return;}
+  if(a==='hudmin'){S.hudMin=!S.hudMin;applyHud();save();return;}
   if(a==='mute'){audioInit();S.sound=S.sound===false;b.textContent=S.sound?'🔊':'🔇';toast(S.sound?'🔊 เปิดเสียง':'🔇 ปิดเสียง','');save();return;}
   if(a==='tspeed'){const i=TSP.findIndex(t=>t[0]===(S.tspeed||2.5));S.tspeed=TSP[(i+1)%TSP.length][0];toast('⏱ ความเร็วเวลา: '+TSP[(i+1)%TSP.length][2],'');hud();save();return;}
   if(a==='ph'){PH.app=x;renderPhone();return;}
@@ -2821,6 +2833,8 @@ ACH.rival='🥇 ชนะศึกชิงตำแหน่งกับต้�
 Object.assign(SKILL,{tor:.6,kai:.8,nam:.8,pond:.85});
 CMD_TYPES.visual.who.push('tor','kai');CMD_TYPES.ir.who.push('nam','pond');CMD_TYPES.repair.who.push('tor','kai');CMD_TYPES.fmea.who.push('nam','pond');CMD_TYPES.test.who.push('pond');
 
+function applyGfx(){if(!R)return;const low=S.gfx==='low';R.setPixelRatio(low?1:Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);sun.castShadow=!low;R.shadowMap.enabled=!low;scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true);}});if(RAIN)RAIN.geometry.setDrawRange(0,low?700:2200);scene.fog.far=low?110:140;const b=$('#gfxBtn');if(b)b.textContent=low?'⚙️ต่ำ':'⚙️';}
+function applyHud(){document.body.classList.toggle('hudmin',!!S.hudMin);}
 /* ---------- boot ---------- */
 (function boot(){
   if(!window.THREE){$('#loading').innerHTML='⚠️ โหลดเอนจิน 3 มิติไม่สำเร็จ<br><span class="muted">ลองรีเฟรชหน้านี้อีกครั้ง</span>';return;}
@@ -2829,6 +2843,8 @@ CMD_TYPES.visual.who.push('tor','kai');CMD_TYPES.ir.who.push('nam','pond');CMD_T
   if(!loaded)newGame();
   initWorld();
   if(loaded&&S.px!==undefined){W.pl.x=S.px;W.pl.z=S.pz;W.driving=false;setLoc();collide(W.pl);}else place('estate');
+  if(S.gfx===undefined)S.gfx=document.body.classList.contains('touch')?'low':'high';if(S.hudMin===undefined&&document.body.classList.contains('touch')&&innerHeight>innerWidth)S.hudMin=true;applyGfx();applyHud();
+  if(document.body.classList.contains('touch')&&innerHeight>innerWidth)setTimeout(()=>toast('📱 หมุนจอเป็นแนวนอนจะเล่นสะดวกขึ้น · ถ่างสองนิ้วเพื่อซูม · 🗂️ ซ่อนแผนที่ · ⚙️ ปรับกราฟิก',''),2500);
   W.lastNpcMin=absMin()-100;makeSpouse();applyHomeUpgrades();applyHireSpots();if(S.tonLead)NPC('ton').role='หัวหน้าทีมวิศวกร';
   hud();renderLog();$('#loading').remove();requestAnimationFrame(frame);
   if(loaded&&S.phase==='sleep'){fade(true,'😴 หลับฝันดี...');setTimeout(continueSleep,600);}
