@@ -256,7 +256,7 @@ function newGame(){
   NPCS.forEach(n=>S.fr[n.id]=n.fr);
   Object.assign(S,{clean:85,outfit:'work',fridge:{rice:6,egg:6,pork:2,basil:2,garlic:4,veg:2,shrimp:1,herb:1,noodle:3},chats:{},unread:{},mf:{},delivery:[],momCall:0,car:{loc:'estate',x:9,z:21.5,ry:Math.PI}});
   Object.keys(CHAT_META).forEach(k=>{S.chats[k]=[];S.unread[k]=0;});
-  Object.assign(S,{love:{fon:5,james:5},rel:{},conv:{},topic:{},tspeed:2.5});S.inv.gifts=0;
+  Object.assign(S,{love:{fon:5,james:5},rel:{},conv:{},topic:{},tspeed:2.5,pair:{},mad:{}});S.inv.gifts=0;
   S.chats.team.push({f:'tom',x:'ยินดีต้อนรับน้องใหม่เข้าทีมนะ 🎉 มีอะไรถามได้ตลอด',t:'07:55',r:[{t:'ขอบคุณครับ ฝากตัวด้วยครับ 🙏',fr:{tom:2,fon:2,james:2,noi:2}}]});S.unread.team=1;
   S.chats.mom.push({f:'mom',x:'วันแรกที่ทำงานใหม่ สู้ๆ นะลูก ❤️',t:'07:30',r:[{t:'ขอบคุณครับแม่ 🥰',mood:5}]});S.unread.mom=1;
   TX_INIT.forEach(d=>{
@@ -539,7 +539,8 @@ function talk(id){
 }
 const NPC=id=>NPCS.find(n=>n.id===id);
 function special(id){
-  const n=NPC(id);
+  const n=NPC(id);if(isMad(id)){toast(`😠 ${n.name}: "ไม่ว่าง" (ยังโกรธอยู่)`,'warn');return;}
+  if(id==='ek'){if(S.fr.ek<30){toast('พี่เอก: "ลูกน้องพี่งานเต็มมือ" (ต้องการมิตรภาพ 30)','');return;}S.help.ek=S.day;S.help.james=S.day;toast('🔧 พี่เอกส่งช่างมาช่วย — งานซ่อมเร็วขึ้น 40% ทั้งวัน','ok');return;}
   if(S.help[id]===S.day){toast('วันนี้ขอความช่วยเหลือไปแล้ว','');return;}
   if(id==='tom'){
     if(S.fr.tom<20){toast('พี่ต้อม: "ไว้สนิทกันกว่านี้ก่อนนะ"','');return;}
@@ -607,6 +608,7 @@ function wake(){
   norm();startDay();place('bed');after();setTimeout(()=>fade(false),500);
 }
 function startDay(){
+  for(const k in CONFLICTS){S.pair[k]=(S.pair[k]??CONFLICTS[k].v)-3;}
   S.money-=200;const wd=S.day%7;S.mood+=(S.energy-50)/12;
   if(wd===0){S.phase='holiday';const sal=LEVELS[S.level].salary;S.money+=sal-2500;log(`💰 เงินเดือนออก +${sal.toLocaleString()} ฿ (จ่ายค่าห้อง 2,500 ฿)`,'ok');log('🌴 วันอาทิตย์ วันหยุด!','info');}
   else{S.phase='morning';log(`⏰ ตื่นนอน 07:00 วัน${DAYS[wd]} — เดินไปที่ประตูเพื่อขับรถไปนิคมฯ (ต้องถึงก่อน 08:00)`,'info');}
@@ -866,7 +868,8 @@ function statusPanel(){
   return `<h2>📋 สถานะ</h2><h3>🎯 เส้นทางอาชีพ</h3><div style="font-size:16px;font-weight:600">${L.name}</div><div class="muted">เงินเดือน ${L.salary.toLocaleString()} ฿/สัปดาห์</div>
   ${nx?`<div class="muted">ถัดไป: <b style="color:var(--text)">${nx.name}</b> — XP ${S.xp}/${nx.xp} ${S.xp>=nx.xp?'✅':''} · ชื่อเสียง ${Math.round(S.rep)}/${nx.rep} ${S.rep>=nx.rep?'✅':''} (ขอประเมินกับบอส)</div>`:''}
   <div class="muted" style="margin-top:6px">ลำดับตำแหน่ง: ${LEVELS.map((l,i)=>i===S.level?`<b style="color:var(--acc)">${l.name}</b>`:l.name).join(' → ')}</div>
-  <h3>🤝 เพื่อนร่วมงาน</h3>${NPCS.map(n=>`<div style="margin:6px 0"><b>${n.name}</b> <span class="muted">${n.role}</span>${frBar(n.id)}</div>`).join('')}
+  <h3>👥 ความสัมพันธ์ในทีม</h3>${teamRelHTML()}
+  <h3>🤝 เพื่อนร่วมงาน (${NPCS.length} คน)</h3>${NPCS.map(n=>`<div style="margin:6px 0"><b>${n.name}</b> <span class="muted">${n.role}</span>${frBar(n.id)}</div>`).join('')}
   <h3>⚡ หม้อแปลง</h3><table><tr><th>ID</th><th>HI</th><th>ความเสี่ยง</th><th>สถานะ</th></tr>${S.tx.map(t=>`<tr><td>${t.id}</td><td>${t.hi.toFixed(1)}</td><td>${rpill(t)}</td><td>${t.trip?'⛔ ทริป':'จ่ายไฟ'}</td></tr>`).join('')}</table>
   <h3>📝 บันทึก</h3>${S.log.slice(0,30).map(l=>`<div class="lg ${l.type}"><time>${l.t}</time>${l.msg}</div>`).join('')}`;
 }
@@ -888,6 +891,7 @@ function help(){
   <tr><td>⚡ ทดสอบไฟฟ้า</td><td>FM-05 หน้าสัมผัส OLTC · FM-07 DF บุชชิ่ง · FM-03 PD · FM-01</td></tr>
   <tr><td>🧪 DGA/น้ำมัน</td><td>FM-01 กระดาษฉนวน · FM-02 ความร้อน · FM-03 PD/อาร์ก · FM-04 น้ำมันเสื่อม</td></tr></table>
   <p><b>🤝 เพื่อนร่วมงาน:</b> ทุกคนมีงานของตัวเอง (ป้ายเหนือหัวบอกว่ากำลังทำอะไร) — เจมส์เดินตรวจหม้อแปลง ฝนสแกน IR/ทำ FMEA พี่ต้อมทดสอบไฟฟ้า พี่หน่อยเก็บน้ำมันที่เลยกำหนด แล้วแจ้งผลในแชท · กด E คุยแบบเลือกหัวข้อหรือพิมพ์คุยเอง · มิตรภาพ ≥ 40 ฝากงานเจมส์/ฝนได้</p>
+  <p><b>💢 ความขัดแย้ง:</b> ทีมมี ${NPCS.length} คน บางคู่ไม่ถูกกัน (ดูใน 📋) — จะเห็นฟองคำพูดเวลาเถียงกัน เดินเข้าไปกด E เพื่อไกล่เกลี่ยหรือเข้าข้าง · คุยกับใครก็กด "🗣️ แย้ง/ถก" ได้ ใช้เหตุผลด้วยข้อมูลจะชนะ พูดแรงจะทะเลาะ → ผิดใจกัน ต้องขอโทษ/ให้ของฝากง้อ</p>
   <p><b>💕 ความรัก:</b> จีบฝนหรือน้องเจมส์ได้ — คุย จีบ ให้ของฝาก (ซื้อที่มุมกาแฟ/โรงอาหาร) → ชวนเดต (💕 ≥ 20) → สารภาพรัก (💕 ≥ 55) · ⏱ ปุ่มมุมขวาบนปรับความเร็วเวลา</p>
   <p><b>📱 โทรศัพท์ (ปุ่ม 📱 หรือกด P):</b> แชทกับทีม/บอส/เพื่อน/แม่ · โทรศูนย์ควบคุมขอลดโหลดหม้อแปลงเสี่ยงสูง · โทรแล็บ/ช่าง · ลาป่วย · สั่งของสดส่งถึงบ้าน</p>
   <p><b>🚗 ขับรถ:</b> เดินไปที่รถกด E · W/S เร่ง/ถอย · A/D เลี้ยว · Shift เร็ว · ขับออกประตูนิคมฯ เพื่อกลับบ้าน · ที่บ้านขับไปสุดถนนเพื่อไปทำงาน/เที่ยว</p>
@@ -944,12 +948,13 @@ function initWorld(){
   Object.assign(sun.shadow.camera,{left:-30,right:30,top:30,bottom:-30,near:1,far:120});sun.shadow.bias=-.0006;sun.shadow.normalBias=.02;sun.shadow.camera.updateProjectionMatrix();
   scene.add(sun);scene.add(sun.target);
   EG=new THREE.Group();HG=new THREE.Group();scene.add(EG);scene.add(HG);
-  buildEstate();buildHome();
+  buildEstate();buildTeamBuildings();buildHome();
+  interact.push({loc:'estate',get x(){const A=W.argue&&npcById(W.argue.a);return A?A.x+.7:-999;},get z(){const A=W.argue&&npcById(W.argue.a);return A?A.z:-999;},r:5,prio:4,ok:()=>W.argue&&W.argue.started,label:()=>'💢 เข้าไปห้ามทัพ / ไกล่เกลี่ย',use:()=>argueModal()});
   person=makePerson({shirt:0x1f4e8c,pants:0x22324a,hair:0x1d1410,hat:true,vest:true});scene.add(person.g);buildCar();
   S.tx.forEach(T=>buildTransformer(T));
-  NPCS.forEach(d=>{const p=makePerson({shirt:d.shirt,pants:d.pants,hair:d.hair,hat:d.id==='james',vest:d.id==='james'});EG.add(p.g);
-    const lb=labelSprite([{t:d.name,s:46,b:1},{t:d.role.split(' (')[0],s:30,c:'#9cc8ff'}],420,120,1.7);lb.position.y=2.55;p.g.add(lb);
-    const n={d,p,lb,x:d.work.x,z:d.work.y,zone:d.work.z,path:[],goal:'',vis:true,ry:0,job:null,nextJob:0};W.npcs.push(n);
+  NPCS.forEach(d=>{const p=makePerson({shirt:d.shirt,pants:d.pants,hair:d.hair,hat:FIELD_IDS.includes(d.id),vest:FIELD_IDS.includes(d.id)});EG.add(p.g);
+    const lb=labelSprite([{t:d.name,s:46,b:1},{t:d.role.split(' (')[0],s:30,c:'#9cc8ff'}],420,120,1.7);lb.position.y=2.55;p.g.add(lb);const bub=bubbleSprite();bub.position.y=3.5;bub.visible=false;p.g.add(bub);
+    const n={d,p,lb,bub,x:d.work.x,z:d.work.y,zone:d.work.z,path:[],goal:'',vis:true,ry:0,job:null,nextJob:0};W.npcs.push(n);
     interact.push({loc:'estate',npc:n,r:1.9,get x(){return n.x;},get z(){return n.z;},label:()=>`คุยกับ ${d.name}`,use:()=>openPanel(npcPanel(d.id)),ok:()=>n.vis});});
   W.ready=true;
   addEventListener('resize',()=>{R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();});
@@ -1191,7 +1196,7 @@ function animPerson(p,moving,running,dt,t,work){
 function dressFor(loc){const o=OUTFITS[S.outfit]||OUTFITS.work,w=S.outfit==='work';person.hat.visible=w&&loc==='estate';person.hair.visible=!person.hat.visible;person.vest.forEach(v=>v.visible=w);person.shirt.color.setHex(o.shirt);person.pants.color.setHex(o.pants);}
 
 /* ---------- NPC navigation ---------- */
-const TOOUT={office:[[0,-17],[0,-12.5]],boss:[[9,-24],[9,-20.5],[0,-17],[0,-12.5]],meet:[[-8.5,-24],[-8.5,-20.5],[0,-17],[0,-12.5]],lab:[[26,-19],[26,-14.5]],canteen:[[-26,-12]],lkb:[[-31.75,40.6],[-31.75,33],[-28,32],[-28,27.5]],clk:[[24.25,40.6],[24.25,33],[28,32],[28,27.5]],park:[[12,14]],out:[]};
+const TOOUT={office:[[0,-17],[0,-12.5]],boss:[[9,-24],[9,-20.5],[0,-17],[0,-12.5]],meet:[[-8.5,-24],[-8.5,-20.5],[0,-17],[0,-12.5]],lab:[[26,-19],[26,-14.5]],canteen:[[-26,-12]],lkb:[[-31.75,40.6],[-31.75,33],[-28,32],[-28,27.5]],clk:[[24.25,40.6],[24.25,33],[28,32],[28,27.5]],park:[[12,14]],plan:[[44,-19],[44,-14.5]],shop:[[-9,34],[-5,34],[-5,28]],out:[]};
 function route(from,to,spot){if(from===to)return [spot];return [...TOOUT[from],...[...TOOUT[to]].reverse(),spot];}
 /* ---------- places ---------- */
 function place(where){
@@ -1211,9 +1216,10 @@ function drawMini(){
   g.fillStyle='#2f4a2a';g.fillRect(0,0,w,h);
   mapRects.forEach(r=>{g.fillStyle=r.c;g.fillRect(X(r.x0),Z(r.z0),(r.x1-r.x0)*sx,(r.z1-r.z0)*sz);});
   g.font='9px system-ui,"Noto Sans Thai",sans-serif';g.fillStyle='#fff';g.textAlign='center';
-  [['ออฟฟิศ',0,-22],['แล็บ',26,-22],['โรงอาหาร',-26,-20],['LKB',-28,36],['CLK',28,36],['P',15,20]].forEach(([t,x,z])=>g.fillText(t,X(x),Z(z)+3));
+  [['โรงซ่อม',-10,35],['วางแผน',44,-22],['ออฟฟิศ',0,-22],['แล็บ',26,-22],['โรงอาหาร',-26,-20],['LKB',-28,36],['CLK',28,36],['P',15,20]].forEach(([t,x,z])=>g.fillText(t,X(x),Z(z)+3));
   S.tx.forEach(T=>{const v=W.tv[T.id];if(!v)return;g.fillStyle=T.trip?'#ff2a1a':RISK[tRisk(T)].c;g.beginPath();g.arc(X(v.x),Z(v.z),3,0,7);g.fill();});
   W.npcs.forEach(n=>{if(!n.vis)return;g.fillStyle=n.d.id==='boss'?'#f0a63a':'#9cc8ff';g.beginPath();g.arc(X(n.x),Z(n.z),2.4,0,7);g.fill();});
+  if(W.argue&&W.argue.started){const A=npcById(W.argue.a);g.fillStyle=Math.sin(performance.now()/150)>0?'#ff2a1a':'#ffdd55';g.font='14px sans-serif';g.fillText('💢',X(A.x),Z(A.z)-4);}
   const px=X(W.pl.x),pz=Z(W.pl.z),a=W.pl.ry;g.fillStyle='#fff';g.beginPath();g.moveTo(px+Math.sin(a)*6,pz+Math.cos(a)*6);g.lineTo(px+Math.sin(a+2.5)*4,pz+Math.cos(a+2.5)*4);g.lineTo(px+Math.sin(a-2.5)*4,pz+Math.cos(a-2.5)*4);g.fill();
 }
 
@@ -1300,7 +1306,7 @@ function frame(now){
   miniT+=dt;if(miniT>.2){miniT=0;drawMini();}
   // interaction
   nearest=null;let bd=1e9;
-  if(!paused&&!W.driving)for(const it of interact){if(it.loc!=='*'&&it.loc!==S.loc)continue;if(it.ok&&!it.ok())continue;const dd=Math.hypot(it.x-W.pl.x,it.z-W.pl.z);if(dd<it.r&&dd<bd){bd=dd;nearest=it;}}
+  if(!paused&&!W.driving)for(const it of interact){if(it.loc!=='*'&&it.loc!==S.loc)continue;if(it.ok&&!it.ok())continue;const dd=Math.hypot(it.x-W.pl.x,it.z-W.pl.z);if(dd<it.r&&dd-(it.prio||0)<bd){bd=dd-(it.prio||0);nearest=it;}}
   const pr=$('#prompt'),k=document.body.classList.contains('touch')?'✋':'E';
   if(W.driving&&!paused){const txt=`<kbd>${k}</kbd>ลงจากรถ`;if(pr.innerHTML!==txt)pr.innerHTML=txt;pr.style.display=Math.abs(W.spd)<1.5?'block':'none';}
   else if(nearest){const txt=`<kbd>${k}</kbd>${nearest.label()}`;if(pr.innerHTML!==txt)pr.innerHTML=txt;pr.style.display='block';}else pr.style.display='none';
@@ -1350,6 +1356,8 @@ document.addEventListener('click',e=>{
     case 'say':{const el=$('#say');if(el){const v=el.value;el.value='';converse(x,v,'panel');}return;}
     case 'phsend':{const el=$('#phin');if(el){const v=el.value;el.value='';converse(x,v,'phone');}return;}
     case 'gift':giveGift(x);break;
+    case 'debate':startDebate(x);return;
+    case 'reconcile':reconcile(x);break;
     case 'invite':inviteDate(x);break;
     case 'confess':closePanel();confess(x);break;
     case 'deleg':{const [i,t]=x.split('|');delegate(i,t);break;}
@@ -1401,6 +1409,8 @@ function callActs(id){
     case 'tom':return [['tom_help','🧠 ปรึกษาเรื่อง DGA / หม้อแปลง (มิตรภาพ ≥ 20)',!w||S.help.tom===S.day]];
     case 'fon':return [['fon_chat','😄 โทรคุยเล่น (10 นาที)',S.talked.fon===S.day]];
     case 'mom':return [['mom','❤️ โทรหาแม่ (15 นาที)',S.momCall===S.day]];
+    case 'ek':return [['ek_help','🔧 ขอช่างช่วยงานซ่อมวันนี้ (มิตรภาพ ≥ 30)',!w||S.help.ek===S.day],['chat|ek','😄 โทรคุย',S.talked.ek===S.day]];
+    case 'ann':case 'mind':return [['chat|'+id,'😄 โทรคุย (5 นาที)',S.talked[id]===S.day]];
   }
   return [];
 }
@@ -1418,6 +1428,8 @@ function callAct(x){
   if(k==='james_help')special('james');
   if(k==='tom_help')special('tom');
   if(k==='fon_chat'){talk('fon');advance(5);}
+  if(k==='ek_help')special('ek');
+  if(k==='chat'){if(isMad(arg)){toast(`📵 ${NPC(arg).name} ไม่รับสาย (ยังโกรธอยู่)`,'warn');}else talk(arg);}
   if(k==='mom'){S.momCall=S.day;advance(15);S.mood+=8;toast('👩 แม่: "กินข้าวเยอะๆ นะลูก ดูแลตัวเองด้วย" ❤️ (ความสุข +8)','ok');}
 }
 let CART={};
@@ -1653,7 +1665,16 @@ function newJob(n,force){
     if(r<.35&&od.length){const t=od[0];return J({kind:'sample',t:t.id,label:`🧪 เก็บน้ำมัน ${t.id}`,...txSpot(t),dur:20});}
     return J({kind:'lab',label:'🔬 วิเคราะห์ตัวอย่างด้วยเครื่อง GC',z:'lab',x:23.6,y:-25.3,dur:90,anim:'type'});}
   if(id==='boss')return r<.25?J({kind:'tour',t:T.id,label:`👀 เดินตรวจ ${T.ss}`,...txSpot(T),dur:20,anim:false}):r<.5?J({kind:'meet',label:'📊 ประชุมผู้บริหาร',z:'meet',x:-9,y:-24.6,dur:60,anim:false}):J({kind:'desk',label:'📝 อนุมัติเอกสาร',z:'boss',x:9,y:-25.6,dur:90,anim:'type'});
-  return J({kind:'idle',label:'',z:n.d.work.z,x:n.d.work.x,y:n.d.work.y,dur:60});
+  const W0={z:n.d.work.z,x:n.d.work.x,y:n.d.work.y};
+  if(id==='ek')return r<.5?J({kind:'repairpm',t:T.id,label:`🔧 ซ่อมบำรุงตามแผน ${T.id}`,...txSpot(T),dur:60}):J({kind:'shop',label:'🛠️ ซ่อมอะไหล่ในโรงซ่อม',...W0,dur:90});
+  if(id==='chan')return r<.4?J({kind:'inspect2',t:T.id,label:`🔍 ตรวจพินิจ ${T.id}`,...txSpot(T),dur:50}):J({kind:'shop',label:'🔩 ซ่อมอะไหล่ด้วยมือ',...W0,dur:90});
+  if(id==='beer')return r<.25?J({kind:'slack',label:'😴 แอบงีบ',z:'canteen',x:-19.5,y:-15,dur:40,anim:false}):r<.6?J({kind:'inspect2',t:T.id,label:`⚡ ตรวจตู้ควบคุม ${T.id}`,...txSpot(T),dur:40}):J({kind:'shop',label:'🔌 เดินสายไฟในโรงซ่อม',...W0,dur:80});
+  if(id==='prae')return J({kind:'plan',label:'📅 วางแผน PM เดือนหน้า',...W0,dur:100,anim:'type'});
+  if(id==='ton')return r<.35?J({kind:'ir2',t:T.id,label:`📷 สแกน IR ${T.id}`,...txSpot(T),dur:30}):J({kind:'plan',label:'💻 เตรียมสไลด์เสนอบอส',...W0,dur:90,anim:'type'});
+  if(id==='mind')return r<.55?J({kind:'safety',t:T.id,label:`🦺 ตรวจความปลอดภัย ${T.ss}`,...txSpot(T),dur:30,anim:false}):J({kind:'plan',label:'📋 ทำรายงานความปลอดภัย',...W0,dur:80,anim:'type'});
+  if(id==='ann')return J({kind:'plan',label:'📦 ทำใบสั่งซื้ออะไหล่',...W0,dur:100,anim:'type'});
+  if(id==='gift')return r<.4?J({kind:'learn',t:T.id,label:`📝 ฝึกงานดูหม้อแปลง ${T.id}`,...txSpot(T),dur:40,anim:false}):J({kind:'plan',label:'📚 ทำรายงานฝึกงาน',...W0,dur:90,anim:'type'});
+  return J({kind:'idle',label:'',...W0,dur:60});
 }
 function npcJobDone(n,j){
   const nm=n.d.name,T=j.t?TX(j.t):null,f=T&&T.fault;
@@ -1668,6 +1689,12 @@ function npcJobDone(n,j){
   if(j.kind==='sample'){n.job=newJob(n,{kind:'labdrop',t:j.t,del:j.del,label:`🧪 นำตัวอย่าง ${j.t} ส่งแล็บ`,z:'lab',x:24.5,y:-25.3,dur:10,anim:'type'});n.atJob=false;n.jobEnd=0;return true;}
   if(j.kind==='labdrop'){const t=TX(j.t);t.age=0;S.lab.push({ready:absMin()+90,res:genDGA(t)});S.lab.sort((a,b)=>a.ready-b.ready);
     if(j.del){markTask('sample',t.id);msg('james','james',`ส่งตัวอย่าง ${t.id} ให้พี่หน่อยแล้วครับ ✅`,[{t:'ขอบใจนะเจมส์ 🙏',fr:{james:2}}]);}else msg('team','noi',`พี่เก็บน้ำมัน ${t.id} ที่เลยกำหนดมาให้แล้ว ผลออกบ่ายนี้`);}
+  if(j.kind==='repairpm'&&f&&['FM-06','FM-08','FM-10'].includes(f.fm)&&f.sev<.7&&Math.random()<.6){const nm2=FMS[f.fm].name;T.fault=null;T.find=[];T.known=null;T.hi=clamp(T.hi+5,0,100);msg('team','ek',`จัดการ "${nm2}" ที่ ${T.id} ให้แล้วนะ ไม่ต้องห่วง 🔧`,[{t:'ขอบคุณมากพี่เอก!',fr:{ek:3}}]);}
+  if(j.kind==='inspect2'){const r=found('visual',nm);if(r)msg('team',n.d.id,`${T.id} มีปัญหา: ${r}`,[{t:'ขอบคุณที่แจ้งนะ',fr:{[n.d.id]:2}}]);}
+  if(j.kind==='ir2'){const r=found('ir','ต้น');if(r){msg('boss','ton',`(ต้นส่งถึงบอส) ผมตรวจพบ ${r} ที่ ${T.id} ครับ`);msg('team','ton',`ผมเจอจุดร้อน ${T.id} นะ รายงานบอสแล้ว 😎`,[{t:'เยี่ยมเลย',fr:{ton:2}},{t:'แจ้งทีมก่อนรายงานบอสก็ดีนะ',fr:{ton:-2,fon:2}}]);}}
+  if(j.kind==='safety'&&S.loc==='estate'&&W.zone===('ss'+T.ss)&&S.outfit!=='work'){S.rep-=2;toast('🦺 มายด์: "ไม่ใส่ PPE เข้าลานไกไฟฟ้า! ครั้งนี้ตักเตือนนะ" (ชื่อเสียง −2)','bad');}
+  if(j.kind==='slack'){const k='beer|ek';S.pair[k]=(S.pair[k]??0)-6;}
+  if(j.kind==='learn'&&Math.random()<.3)msg('gift','gift',pick(['พี่คะ/ครับ ทำไมรังผึ้งต้องมีพัดลมด้วยเหรอ?','วันนี้หนูได้เห็นบุชชิ่งใกล้ๆ ครั้งแรก ตื่นเต้นมาก!','พี่ช่วยตรวจรายงานฝึกงานให้หน่อยได้ไหม 🙏']),[{t:'ได้เลย ถามมาได้ตลอด 😊',fr:{gift:4}},{t:'ยุ่งอยู่ ไว้ก่อนนะ',fr:{gift:-1}}]);
   if(j.kind==='tour'&&T&&RORD[tRisk(T)]<=1)msg('boss','boss',`เพิ่งเดินดู ${T.id} มา ความเสี่ยง ${RISK[tRisk(T)].en} นะ ดูแลใกล้ชิดด้วย`,[{t:'รับทราบครับ',fr:{boss:1}}]);
   return false;
 }
@@ -1682,9 +1709,10 @@ function npcGoal(n){
 function updateNPCs(dt,t){
   const show=S.loc==='estate'&&S.day%7!==0&&S.phase!=='morning';
   const now=absMin(),jump=Math.abs(now-W.lastNpcMin)>12;W.lastNpcMin=now;
+  if(show){const hr=Math.floor(S.min/60);if(W.argHr!==hr){W.argHr=hr;maybeArgue();}argueTick(dt);}
   const workHrs=(S.phase==='work')&&S.min>=480&&S.min<1020&&!(S.min>=720&&S.min<780);
   W.npcs.forEach(n=>{
-    if(!show){n.p.g.visible=false;n.vis=false;return;}
+    if(!show){n.p.g.visible=false;n.vis=false;n.bub.visible=false;return;}
     if(workHrs){
       if(!n.job&&now>=(n.nextJob||0)){n.job=newJob(n);n.atJob=false;n.jobEnd=0;}
       if(n.job&&n.atJob&&now>=n.jobEnd){const j=n.job;n.job=null;n.atJob=false;if(!npcJobDone(n,j))n.nextJob=now+ri(15,45);}
@@ -1703,7 +1731,7 @@ function updateNPCs(dt,t){
     n.vis=!gone;n.p.g.visible=!gone;n.p.g.position.set(n.x,0,n.z);n.p.g.rotation.y=n.ry;
     let mode=false;if(!moving&&!near){if(n.atJob&&n.job)mode=n.job.anim;else if(G.k==='work'&&n.d.id!=='james')mode='type';}
     animPerson(n.p,moving,false,dt,t,mode);
-    const act=npcActivity(n),rel=S.rel&&S.rel[n.d.id]==='partner'?' 💕':'';
+    const act=npcActivity(n),rel=(S.rel&&S.rel[n.d.id]==='partner'?' 💕':'')+(isMad(n.d.id)?' 😠':'');
     if(n.lbKey!==act+rel){n.lbKey=act+rel;n.lb.userData.draw([{t:n.d.name+rel,s:46,b:1},{t:act.slice(0,26),s:30,c:'#9cc8ff'}]);}
   });
 }
@@ -1762,6 +1790,7 @@ function gain(id,kind,v){
 }
 function convPush(id,w,t){S.conv[id]=S.conv[id]||[];S.conv[id].push({w,t});if(S.conv[id].length>14)S.conv[id].shift();}
 function startTopic(id,cat){
+  if(isMad(id)){convPush(id,'npc',pick(['…ไม่อยากคุยตอนนี้','ยังโกรธอยู่นะ','(เมินหน้าหนี)']));advance(1);return;}
   const bank=(TALK[id]||{})[cat];if(!bank||!bank.length)return;
   S.tUsed=S.tUsed||{};const key=id+cat;const used=S.tUsed[key]||[];let idx=bank.findIndex((x,i)=>!used.includes(i));if(idx<0){S.tUsed[key]=[];idx=ri(0,bank.length-1);}
   (S.tUsed[key]=S.tUsed[key]||[]).push(idx);
@@ -1788,10 +1817,16 @@ ${rom?`ตัวละครนี้จีบได้ (อายุ ${rom.age}
 บทสนทนาล่าสุด:
 ${hist||'(เพิ่งเริ่มคุย)'}
 ผู้เล่นพูดว่า: "${text.slice(0,300)}"
-ตอบเป็น JSON อย่างเดียว: {"reply":"คำพูดของ${name}","fr":จำนวนเต็ม -3..3,"love":จำนวนเต็ม -3..3 (ถ้าไม่ใช่ตัวละครจีบให้เป็น 0)}`;
+${isMad(id)?'ตอนนี้ตัวละครกำลังโกรธ/ผิดใจกับผู้เล่นอยู่ ให้ตอบห้วนๆ เย็นชา เว้นแต่ผู้เล่นขอโทษอย่างจริงใจ':''}
+ถ้าผู้เล่นเถียง แย้ง หรือพูดไม่ให้เกียรติ ให้ตัวละครโต้แย้งกลับตามบุคลิก (ไม่หยาบคาย) และให้ค่า anger สูงขึ้น ถ้าผู้เล่นใช้เหตุผลและข้อมูลอย่างสุภาพ ตัวละครอาจยอมรับได้
+ตอบเป็น JSON อย่างเดียว: {"reply":"คำพูดของ${name}","fr":จำนวนเต็ม -3..3,"love":จำนวนเต็ม -3..3 (ถ้าไม่ใช่ตัวละครจีบให้เป็น 0),"anger":จำนวนเต็ม 0..3 (ความโกรธที่เกิดจากประโยคนี้)}`;
 }
 function fallbackReply(id,text){
   const t=text.toLowerCase(),rom=ROMANCE[id],love=S.love[id]||0;
+  if(/โง่|ควาย|ห่วย|ไร้สาระ|หุบปาก|เงียบไป|ไม่เก่ง|มั่ว|ไม่รู้เรื่อง/.test(text))return {reply:pick(['พูดแบบนี้ได้ยังไง!','ไม่ต้องมาว่ากันแบบนี้นะ 😠','ให้เกียรติกันหน่อยสิ']),fr:-3,anger:3};
+  if(/ขอโทษ|ขอโทด|sorry/i.test(text)&&isMad(id)){S.mad[id]=0;return {reply:'…อืม ไม่เป็นไรแล้ว',fr:2};}
+  if(isMad(id))return {reply:pick(['…','ไม่อยากคุย','อืม'],),fr:0};
+  if(/ไม่เห็นด้วย|ผิด|ไม่ใช่|เถียง|แย้ง/.test(text))return {reply:pick(['ทำไมคิดแบบนั้นล่ะ ลองอธิบายด้วยข้อมูลหน่อย','ฉันว่าฉันถูกนะ','ก็ได้ เห็นต่างกันได้ แต่ขอเหตุผล']),fr:0,anger:1};
   if(FLIRT_RE.test(text)){if(!rom)return {reply:id==='mom'?'แม่ก็รักลูกนะ ❤️ ดูแลตัวเองด้วย':pick(['555 พี่มีครอบครัวแล้วนะ อย่าแซวสิ','ขำๆ น่า ไปทำงานต่อดีกว่า 😅']),fr:id==='mom'?2:0};
     return love>=50?{reply:pick(['พูดแบบนี้เขินนะ… แต่ชอบ 💕','ฉัน… ก็รู้สึกเหมือนกันแหละ 😳']),fr:1,love:3}:love>=20?{reply:pick(['แซวอีกแล้ว 🙈','บ้า! พูดอะไรของแก 😆']),fr:1,love:2}:{reply:pick(['ห๊ะ? 😅 พูดเล่นใช่มะ','อ่า… ทำงานต่อเถอะ 555']),fr:0,love:1};}
   if(/หวัดดี|สวัสดี|ดีจ้า|hello|hi/.test(t))return {reply:pick(['สวัสดี! วันนี้เป็นไงบ้าง 😊','หวัดดีจ้า มีอะไรให้ช่วยไหม','ดีๆ กินข้าวยัง?']),fr:1};
@@ -1806,12 +1841,13 @@ async function converse(id,text,via){
   convPush(id,'me',text);if(via==='phone')S.chats[id].push({f:'me',x:text,t:fmt(S.min)});
   advance(2);convPush(id,'npc','…');refreshPanel();renderPhone();
   let res=null;
-  if(AI){try{const out=await AI(aiPrompt(id,text),{modelTier:'quick',cache:false});const m=(out.text||'').match(/\{[\s\S]*\}/);if(m){const j=JSON.parse(m[0]);if(j&&typeof j.reply==='string')res={reply:j.reply.slice(0,300),fr:clamp(Math.round(+j.fr||0),-3,3),love:clamp(Math.round(+j.love||0),-3,3)};}}
+  if(AI){try{const out=await AI(aiPrompt(id,text),{modelTier:'quick',cache:false});const m=(out.text||'').match(/\{[\s\S]*\}/);if(m){const j=JSON.parse(m[0]);if(j&&typeof j.reply==='string')res={reply:j.reply.slice(0,300),fr:clamp(Math.round(+j.fr||0),-3,3),love:clamp(Math.round(+j.love||0),-3,3),anger:clamp(Math.round(+j.anger||0),0,3)};}}
     catch(e){if(e&&(e.code==='not_granted'))AI=null;}}
   if(!res)res=fallbackReply(id,text);
   S.conv[id].pop();convPush(id,'npc',res.reply);
   if(via==='phone')S.chats[id].push({f:id,x:res.reply,t:fmt(S.min)});
   const f=gain(id,'fr',res.fr||0),l=gain(id,'love',res.love||0);showGain(id,res.fr>0?f:res.fr,l);
+  if(res.anger&&NPC(id)){S.angerAcc=S.angerAcc||{};const k2=id+S.day;S.angerAcc[k2]=(S.angerAcc[k2]||0)+res.anger;if(S.angerAcc[k2]>=5&&!isMad(id)){S.fr[id]-=8;setMad(id,1);}}
   W.talking=false;norm();save();refreshPanel();renderPhone();hud();
 }
 // ---- gifts / dates / confession ----
@@ -1863,12 +1899,12 @@ function npcPanel(id){
     const n=NPC(id),np=W.npcs.find(x=>x.d.id===id),w=isWork(),rom=ROMANCE[id],fr=S.fr[id]||0,love=S.love[id]||0;
     const conv=(S.conv[id]||[]).map(c=>`<div class="bub ${c.w==='me'?'me':''}">${c.t}</div>`).join('');
     const tp=S.topic[id];
-    const sp={tom:['🧠 ขอคำแนะนำเรื่อง DGA','≥ 20'],noi:['⚡ ขอผลแล็บด่วน','≥ 30'],james:['🔧 ขอให้ช่วยงานซ่อมวันนี้','≥ 25'],fon:['📊 ขอให้ช่วยดู FMEA (แสดง RPN)','≥ 30']}[id];
+    const sp={ek:['🔧 ขอช่างช่วยงานซ่อมวันนี้','≥ 30'],tom:['🧠 ขอคำแนะนำเรื่อง DGA','≥ 20'],noi:['⚡ ขอผลแล็บด่วน','≥ 30'],james:['🔧 ขอให้ช่วยงานซ่อมวันนี้','≥ 25'],fon:['📊 ขอให้ช่วยดู FMEA (แสดง RPN)','≥ 30']}[id];
     let extra='';
     if(id==='boss'){const nx=LEVELS[S.level+1];extra=`<h3>📋 งานที่มอบหมายวันนี้</h3>${S.tasks.map(k=>`<div class="tk ${k.done?'done':''}">${k.done?'☑':'☐'} ${taskText(k)}</div>`).join('')}
       <div class="btns" style="margin-top:8px"><button class="pri" data-a="breport" ${S.inv.report&&w?'':'disabled'}>📄 ส่งรายงานประจำวัน</button>${nx?`<button data-a="promo" ${w?'':'disabled'}>🎖️ ขอประเมินเลื่อนเป็น ${nx.name}</button>`:''}</div>
       ${nx?`<p class="muted">เงื่อนไข: XP ${S.xp}/${nx.xp} ${S.xp>=nx.xp?'✅':''} · ชื่อเสียง ${Math.round(S.rep)}/${nx.rep} ${S.rep>=nx.rep?'✅':''}</p>`:''}`;}
-    else{extra=`<div class="btns" style="margin-top:6px"><button data-a="special" data-x="${id}" ${S.help[id]===S.day||!w?'disabled':''}>${sp[0]} <small class="muted">(มิตรภาพ ${sp[1]})</small></button></div>`;
+    else{extra=sp?`<div class="btns" style="margin-top:6px"><button data-a="special" data-x="${id}" ${S.help[id]===S.day||!w||isMad(id)?'disabled':''}>${sp[0]} <small class="muted">(มิตรภาพ ${sp[1]})</small></button></div>`:'';
       if((id==='james'||id==='fon')&&w){const can=fr>=40&&S.help['del_'+id]!==S.day;const list=id==='james'?S.tx.filter(t=>!t.trip):S.tx.filter(t=>fmeaCount(t)<10);
         extra+=`<h3>🙏 ฝากงาน <small class="muted">(มิตรภาพ ≥ 40 · วันละครั้ง)</small></h3><div class="btns">${list.length?list.map(t=>`<button data-a="deleg" data-x="${id}|${t.id}" ${can?'':'disabled'}>${id==='james'?'🧪 เก็บน้ำมัน':'📊 FMEA'} ${t.id}</button>`).join(''):'<span class="muted">ไม่มีงานให้ฝาก</span>'}</div>`;}}
     const romBtns=rom?`<h3>💕 ความสัมพันธ์</h3><div class="btns">
@@ -1877,7 +1913,9 @@ function npcPanel(id){
       <button data-a="invite" data-x="${id}" ${love>=20&&!(S.date&&S.date.day===S.day)?'':'disabled'}>🍽️ ชวนไปเดตเย็นนี้${love<20?' (💕 ≥ 20)':''}</button>
       <button data-a="confess" data-x="${id}" ${S.rel[id]!=='partner'&&love>=55&&fr>=45?'':'disabled'}>💌 สารภาพรัก${S.rel[id]==='partner'?' (เป็นแฟนแล้ว)':' (💕 ≥ 55)'}</button></div>`:
       `<div class="btns" style="margin-top:6px"><button data-a="gift" data-x="${id}" ${(S.inv.gifts||0)>0&&!(S.gave&&S.gave[id]===S.day)?'':'disabled'}>🎁 ให้ของฝาก (${S.inv.gifts||0})</button></div>`;
-    return `<h2>${id==='boss'?'👔 ':''}${n.name}</h2><p class="muted">${n.role} · ${relTxt(id)}</p>${frBar(id)}${rom?`<div class="fr">💕 ความรู้สึก <div class="sb"><i style="width:${love}%;background:#ff6fa8"></i></div><b style="color:var(--text)">${Math.round(love)}</b></div>`:''}
+    const mad=isMad(id);
+    extra+=`<h3>🗣️ ความเห็นต่าง</h3><div class="btns">${DEBATE[id]?`<button data-a="debate" data-x="${id}" ${mad||(S.debated&&S.debated[id]===S.day)?'disabled':''}>🗣️ แย้ง/ถกเรื่อง "${DEBATE[id].topic}"</button>`:''}${mad?`<button class="pri" data-a="reconcile" data-x="${id}">🙏 ขอโทษ / ง้อ</button>`:''}</div>${mad?'<p class="muted">😠 กำลังโกรธคุณอยู่ — ไม่ช่วยงาน คุยไม่ค่อยดี ให้ของฝากก่อนง้อจะสำเร็จง่ายขึ้น</p>':''}`;
+    return `<h2>${id==='boss'?'👔 ':''}${n.name}${mad?' 😠':''}</h2><p class="muted">${n.role} · ${mad?'<b style="color:var(--bad)">ผิดใจกันอยู่</b>':relTxt(id)}</p>${frBar(id)}${rom?`<div class="fr">💕 ความรู้สึก <div class="sb"><i style="width:${love}%;background:#ff6fa8"></i></div><b style="color:var(--text)">${Math.round(love)}</b></div>`:''}
     <div class="muted" style="margin-top:6px">ตอนนี้: ${np?npcActivity(np):''}</div>
     <div class="chatv" id="convbox" style="max-height:230px;overflow:auto;border-radius:12px;margin-top:8px;min-height:80px">${conv||`<div class="bub">${pick(['ว่าไง มีอะไรเหรอ?','หวัดดี 😊','มีอะไรให้ช่วยไหม?'])}</div>`}</div>
     ${tp?`<div class="qr" style="border-radius:10px;margin-top:6px">${tp.o.map((o,i)=>`<button data-a="tpick" data-x="${id}|${i}">${o[0]}</button>`).join('')}</div>`:
@@ -1888,11 +1926,184 @@ function npcPanel(id){
   };
 }
 
+/* =====================================================================
+   TEAM EXPANSION · CONFLICT · DEBATE
+   ===================================================================== */
+const FIELD_IDS=['james','ek','chan','beer','mind'];
+const SEATS=(()=>{const T=[[-26,-23],[-26,-17],[-21,-23],[-21,-17]],o=[];for(let k=0;k<3;k++)for(const s of [-1.25,1.25])for(const t of T)o.push([t[0]+(k-1)*.9,t[1]+s]);return o;})();
+NPCS.push(
+ {id:'ek',name:'พี่เอก',role:'หัวหน้าช่าง (Foreman)',shirt:0x2f5d8a,pants:0x1e2a3a,hair:0x111111,work:{z:'shop',x:-11,y:33},fr:15},
+ {id:'chan',name:'ลุงชาญ',role:'ช่างอาวุโส ใกล้เกษียณ',shirt:0x6b5a3a,pants:0x2a2a2a,hair:0xbbbbbb,work:{z:'shop',x:-11,y:36.5},fr:10},
+ {id:'beer',name:'เบียร์',role:'ช่างไฟฟ้า',shirt:0x3a8f6a,pants:0x22324a,hair:0x3a2416,work:{z:'shop',x:-9,y:38.5},fr:25},
+ {id:'prae',name:'แพร',role:'วิศวกรวางแผน (Planner)',shirt:0x8e5bb5,pants:0x2a2a3a,hair:0x1a1010,work:{z:'plan',x:40,y:-23.9},fr:20},
+ {id:'ton',name:'ต้น',role:'วิศวกรบำรุงรักษา (คู่แข่ง)',shirt:0x34495e,pants:0x1b1b1b,hair:0x0d0d0d,work:{z:'plan',x:44,y:-23.9},fr:10},
+ {id:'mind',name:'มายด์',role:'เจ้าหน้าที่ความปลอดภัย (จป.)',shirt:0xff8c1a,pants:0x22324a,hair:0x2a1810,work:{z:'plan',x:40,y:-19},fr:15},
+ {id:'ann',name:'พี่แอน',role:'เจ้าหน้าที่จัดซื้อ',shirt:0xd9a3b5,pants:0x3a3a4a,hair:0x2a1a12,work:{z:'plan',x:48,y:-23.9},fr:10},
+ {id:'gift',name:'กิ๊ฟ',role:'นักศึกษาฝึกงาน',shirt:0xf2f2f2,pants:0x1b2a4a,hair:0x1d1410,work:{z:'plan',x:48,y:-19},fr:30}
+);
+NPCS.forEach((d,i)=>{const s=SEATS[i%SEATS.length];d.lunch={x:s[0],y:s[1]};});
+Object.assign(CHAT_META,{ek:{n:'พี่เอก (หัวหน้าช่าง)',av:'🛠️'},chan:{n:'ลุงชาญ',av:'👴'},beer:{n:'เบียร์',av:'🍺'},prae:{n:'แพร (Planner)',av:'📅'},ton:{n:'ต้น',av:'😎'},mind:{n:'มายด์ (จป.)',av:'🦺'},ann:{n:'พี่แอน (จัดซื้อ)',av:'📦'},gift:{n:'กิ๊ฟ (ฝึกงาน)',av:'🎒'}});
+CONTACTS.splice(5,0,{id:'ek',n:'พี่เอก (หัวหน้าช่าง)',av:'🛠️'},{id:'ann',n:'พี่แอน (จัดซื้อ)',av:'📦'},{id:'mind',n:'มายด์ (จป.)',av:'🦺'});
+Object.assign(PERSONA,{
+ ek:'พี่เอก อายุ 45 หัวหน้าช่าง มือดี ทำงานเร็ว ใจร้อน พูดห้วน ไม่ชอบเอกสารและขั้นตอนเยอะ แต่รักลูกน้อง แต่งงานแล้ว',
+ chan:'ลุงชาญ อายุ 59 ช่างอาวุโสใกล้เกษียณ ประสบการณ์ 35 ปี หัวโบราณ ไม่ค่อยเชื่อระบบใหม่อย่าง RCM ชอบเล่าเรื่องเก่า ใจดีกับคนที่ให้เกียรติ แต่งงานแล้ว มีหลาน',
+ beer:'เบียร์ อายุ 27 ช่างไฟฟ้า ตลก ขี้เล่น ชอบแอบงีบ ไม่ชอบใส่ PPE เพราะร้อน แต่ฝีมือดี แต่งงานแล้วมีลูกเล็ก',
+ prae:'แพร อายุ 30 วิศวกรวางแผน เพอร์เฟกชันนิสต์ เชื่อในข้อมูลและ RCM พูดตรง ไม่ค่อยอดทนกับคนหัวโบราณ มีแฟนแล้ว',
+ ton:'ต้น อายุ 29 วิศวกรบำรุงรักษา ทะเยอทะยาน อยากเลื่อนตำแหน่งเร็ว ชอบเอาหน้ากับบอส แข่งกับผู้เล่น แต่ลึกๆ ไม่ใช่คนเลว มีแฟนแล้ว',
+ mind:'มายด์ อายุ 31 เจ้าหน้าที่ความปลอดภัยวิชาชีพ เข้มงวดเรื่อง PPE และ LOTO มาก ไม่ยอมใครเรื่องความปลอดภัย จริงใจ มีแฟนแล้ว',
+ ann:'พี่แอน อายุ 44 เจ้าหน้าที่จัดซื้อ ยึดกฎระเบียบ เอกสารต้องครบ ไม่ชอบให้ใครเร่งหรือตะโกนใส่ แต่งงานแล้ว',
+ gift:'กิ๊ฟ อายุ 21 นักศึกษาฝึกงานวิศวกรรมไฟฟ้า กระตือรือร้น ชอบถาม เรียกผู้เล่นว่าพี่ ขี้ตื่นเต้น'});
+Object.assign(LINES,{
+ ek:['งานซ่อมไม่ยาก ยากที่เอกสารนี่แหละ','ช่างดีต้องฟังเสียงเครื่อง','ปะเก็นยังไม่มาอีก จัดซื้อทำอะไรอยู่!'],
+ chan:['สมัยลุงไม่มีคอมพิวเตอร์ ก็ดูแลหม้อแปลงได้','หม้อแปลงก็เหมือนคน ต้องดูแลสม่ำเสมอ','อีกปีเดียวลุงก็เกษียณแล้ว'],
+ beer:['ร้อนจังพี่ ขอนอนแป๊บ 😴','ลูกผมเพิ่งหัดเดินแล้วนะพี่!','ใครเลี้ยงข้าวเที่ยงวันนี้ 555'],
+ prae:['แผน PM เดือนหน้าต้องเสร็จวันนี้','ข้อมูลไม่ครบ วางแผนไม่ได้นะ','ลุงชาญไม่ยอมกรอกข้อมูลในระบบอีกแล้ว'],
+ ton:['เดือนนี้ผมเจอปัญหาได้มากที่สุดในทีมนะ','บอสชมผมในที่ประชุมเมื่อวาน','ตำแหน่งหัวหน้าแผนกต้องเป็นของผม'],
+ mind:['PPE ครบไหม? หมวก แว่น ถุงมือ รองเท้า','LOTO ทุกครั้ง ไม่มีข้อยกเว้น','สถิติวันทำงานปลอดอุบัติเหตุ 312 วันแล้ว'],
+ ann:['ใบขอซื้อต้องมีสเปกครบนะ','ราคาเทียบ 3 เจ้าก่อนทุกครั้ง','งบไตรมาสนี้เหลือน้อยแล้ว'],
+ gift:['พี่คะ/ครับ DGA ย่อมาจากอะไรเหรอ','หนูอยากได้คะแนนฝึกงานดีๆ','วันนี้ได้ไปลานไกไฟฟ้าครั้งแรก ตื่นเต้นมาก!']});
+Object.assign(TALK,{
+ ek:{chat:[{q:'เสาร์นี้ไปตกปลากันไหม บ่อแถวนิคมฯ ปลาเยอะ',o:[['ไปครับ/ค่ะ! สอนด้วยนะ',{fr:5},'ได้เลย ตีห้าเจอกันนะ 🎣'],['ขอนอนดีกว่า',{fr:0},'ขี้เกียจจริง 555'],['ตกปลาบาปนะพี่',{fr:-2},'…เออ ก็ไม่ต้องไป']]}],
+  work:[{q:'จัดซื้อช้าแบบนี้ งานผมไม่เดินเลย!',o:[['เดี๋ยวช่วยทำสเปกให้ครบ จะได้เร็วขึ้น',{fr:5},'จริงดิ ขอบใจมาก!'],['ใจเย็นๆ พี่',{fr:1},'ใจเย็นไม่ได้ หม้อแปลงรั่วอยู่!'],['พี่ก็กรอกเอกสารไม่ครบเองนะ',{fr:-4},'นี่เข้าข้างจัดซื้อเหรอ!']]}]},
+ chan:{chat:[{q:'สมัยก่อนลุงปีนเสาไฟฝนตกทั้งคืนนะ เด็กสมัยนี้ไม่ทนหรอก',o:[['ลุงเก่งมาก เล่าให้ฟังหน่อย',{fr:6},'(ลุงยิ้มกว้าง) ก็ได้ เรื่องมันเริ่มจาก…'],['สมัยนี้มีเครื่องมือดีกว่าแล้วลุง',{fr:-1},'เครื่องมือดีแต่ใจไม่สู้ก็เท่านั้น'],['555 ลุงเล่าเรื่องนี้รอบที่สิบแล้ว',{fr:-3},'…ไม่ฟังก็ไม่ต้องฟัง']]}],
+  work:[{q:'ไอ้ระบบ RCM นี่มันดีจริงเหรอ ลุงไม่เห็นต้องใช้เลย',o:[['มันใช้ประสบการณ์แบบลุงนี่แหละมาประเมินค่า O ให้แม่น',{fr:6},'อ้าว… งั้นประสบการณ์ลุงก็มีค่าสินะ'],['ลุงตามไม่ทันแล้ว',{fr:-5},'เด็กปากดี!'],['ไว้ลองดูผลกันสักปี',{fr:2},'ก็ได้ ลุงจะคอยดู']]}]},
+ beer:{chat:[{q:'พี่ๆ ดูรูปลูกผมดิ น่ารักไหม 👶',o:[['น่ารักมาก! แก้มยุ้ยเลย',{fr:5},'ได้แม่มาเต็มๆ 555'],['เหมือนพ่อเลย',{fr:3},'อย่าว่างั้นสิพี่ 555'],['ทำงานก่อนดีกว่า',{fr:-2},'…ครับๆ']]}],
+  work:[{q:'พี่ ใส่หมวกนิรภัยทั้งวันร้อนมาก ไม่ใส่ได้ไหม',o:[['ไม่ได้เด็ดขาด แต่ไปขอแบบระบายอากาศกับพี่มายด์ดูนะ',{fr:3},'โอเคพี่ ไว้ลองขอดู'],['เข้าออฟฟิศค่อยถอดก็ได้',{fr:2},'โอเคพี่'],['ตามใจเลย',{fr:1},'เยส! (แต่พี่มายด์มาพอดี…)']]}]},
+ prae:{chat:[{q:'แกจัดโต๊ะทำงานยังไง ของฉันต้องเป็นระเบียบทุกอย่าง',o:[['เป๊ะเหมือนกัน ชอบความเรียบร้อย',{fr:5},'คอเดียวกัน! 🤝'],['รกนิดๆ แต่หาเจอ',{fr:1},'เห็นแล้วอยากจัดให้ 555'],['ไม่ค่อยสนใจ',{fr:-1},'อืม…']]}],
+  work:[{q:'ลุงชาญไม่ยอมกรอกผลตรวจเข้าระบบเลย แผนฉันพังหมด',o:[['เดี๋ยวช่วยคุยกับลุงดีๆ อาจทำแบบฟอร์มกระดาษให้ลุงก่อน',{fr:5},'ไอเดียดี ขอบใจนะ'],['ฟ้องบอสเลย',{fr:1},'ก็คิดอยู่เหมือนกัน…'],['ลุงอายุเยอะแล้ว เข้าใจลุงหน่อย',{fr:-2},'เข้าใจได้ แต่งานก็ต้องเดิน']]}]},
+ ton:{chat:[{q:'ได้ข่าวว่านายกำลังจะได้เลื่อนตำแหน่งเหรอ',o:[['ยังหรอก ทำงานไปเรื่อยๆ',{fr:2},'อืม… ผมก็เหมือนกัน'],['ใช่ แซงนายแน่',{fr:-4},'ฝันไปเถอะ'],['เราแข่งกันแบบมิตรภาพดีกว่า',{fr:4},'…ก็ได้ ยุติธรรมดี']]}],
+  work:[{q:'เมื่อวานผมรายงานบอสเรื่องจุดร้อน CLK ไปแล้วนะ',o:[['ฝนเป็นคนสแกนเจอนะ ใส่ชื่อฝนด้วยสิ',{fr:-1},'…ก็ได้ เดี๋ยวแก้ให้'],['เยี่ยมเลย',{fr:2},'แน่นอน'],['เอาหน้าอีกแล้ว',{fr:-4},'พูดอะไรของนาย!']]}]},
+ mind:{chat:[{q:'เมื่อวานฉันไปวิ่งมาราธอน 21 กิโล เหนื่อยแต่ฟินมาก',o:[['สุดยอด! ครั้งหน้าชวนด้วย',{fr:5},'จริงนะ! เดี๋ยวส่งตารางซ้อมให้ 🏃'],['เหนื่อยแทนเลย',{fr:1},'555 ลองดูสิ ติดใจนะ'],['ทำไมต้องทรมานตัวเอง',{fr:-1},'ไม่เข้าใจหรอก']]}],
+  work:[{q:'เบียร์ไม่ใส่หมวกเข้าลานไกไฟฟ้าอีกแล้ว ช่วยเตือนหน่อย',o:[['ได้ เดี๋ยวคุยให้ และขอหมวกแบบระบายอากาศให้เขา',{fr:5},'ขอบใจมาก แบบนี้แหละทีมเวิร์ก'],['ปล่อยเขาบ้างก็ได้',{fr:-4},'ปล่อยได้ยังไง ชีวิตคนนะ!'],['เป็นหน้าที่ จป. นะ',{fr:-1},'ก็ใช่ แต่ความปลอดภัยเป็นเรื่องของทุกคน']]}]},
+ ann:{chat:[{q:'ลูกสาวพี่สอบเข้ามหาลัยได้แล้วนะ',o:[['ยินดีด้วยครับ/ค่ะพี่แอน!',{fr:5},'ขอบใจจ้า ภูมิใจมาก'],['คณะอะไรครับ/คะ',{fr:4},'บัญชีจ้า เหมือนแม่ 555'],['ค่าเทอมแพงนะ',{fr:-1},'…ก็ใช่']]}],
+  work:[{q:'ใบขอซื้อปะเก็นของเอก ไม่มีสเปกเลย พี่ซื้อไม่ได้',o:[['เดี๋ยวช่วยหาสเปกจากคู่มือหม้อแปลงให้ครับ/ค่ะ',{fr:5},'ดีเลย ได้แล้วรีบส่งมานะ'],['เร่งให้หน่อยได้ไหม หม้อแปลงรั่ว',{fr:0},'เร่งได้ถ้าเอกสารครบ'],['กฎเยอะจัง',{fr:-3},'กฎมีไว้กันโกงนะจ๊ะ']]}]},
+ gift:{chat:[{q:'พี่คะ/ครับ ทำไมถึงเลือกเป็นวิศวกรบำรุงรักษา',o:[['ชอบที่ได้ทำให้ไฟไม่ดับ คนทั้งนิคมฯ พึ่งเรา',{fr:5},'เท่มากเลย! อยากเป็นแบบพี่'],['เงินดีมั้ง 555',{fr:2},'555 จริงใจดี'],['ไม่รู้สิ',{fr:0},'อ้าว…']]}],
+  work:[{q:'หนูอ่านผล DGA ไม่ออกเลย ตัวเลขเยอะไปหมด',o:[['ดูก๊าซเด่นก่อน C₂H₂ = อาร์ก, C₂H₄ = ร้อนสูง, H₂ = PD',{fr:6},'ว้าว เข้าใจขึ้นเยอะเลย ขอบคุณค่ะ/ครับ!'],['ไปถามพี่ต้อมนะ',{fr:1},'ค่ะ/ครับ…'],['เดี๋ยวก็เข้าใจเอง',{fr:0},'…']]}]}
+});
+TALK.james.flirt=TALK.james.flirt;// keep
+const DEBATE={
+ chan:{topic:'RCM vs PM แบบเดิม',r:[{c:'RCM อะไรนั่น เสียเวลา! PM ทุกอย่างทุกปีแบบเดิมดีที่สุด',o:[['📊 หม้อแปลงที่ทริปปีที่แล้ว เสียจาก failure mode ที่ PM แบบเดิมไม่ได้ตรวจเลย',2,0,'…ก็จริงที่เราไม่ได้ทำ DGA ถี่'],['😤 ลุงหัวโบราณเกินไปแล้ว',0,3,'ว่าใครหัวโบราณ!'],['🤝 ลองทำคู่ขนานสักปีแล้วเทียบผลไหมลุง',1,0,'อืม… ก็ลองดูได้']]},{c:'แต่ถ้าตัดงานไปแล้วพังขึ้นมา ใครรับผิดชอบ?',o:[['📊 งานที่ตัดคือ RPN ต่ำ พังแล้วผลกระทบน้อย เราเอาคนไปเฝ้าลูกเสี่ยงสูงแทน',2,0,'ฟังดูมีเหตุผล…'],['😤 ก็ลุงนั่นแหละ',0,3,'นี่เด็กปากดี!'],['🤝 เรารับผิดชอบร่วมกันทั้งทีม',1,-1,'ถ้าทำเป็นทีม ลุงก็โอเค']]}]},
+ ton:{topic:'ใครควรได้นำเสนอโครงการ',r:[{c:'โครงการ RCM ผมควรเป็นคนนำเสนอผู้บริหารคนเดียว เพราะผมพูดเก่งกว่า',o:[['📊 ทุกคนทำร่วมกัน ควรนำเสนอเป็นทีม แบ่งส่วนตามคนที่ทำจริง',2,0,'…ก็ได้ ถ้าแบ่งกันพูด'],['😤 นายแค่อยากเด่นคนเดียว',0,3,'พูดแบบนี้หมายความว่าไง!'],['🤝 ให้บอสตัดสินดีกว่า',1,0,'ได้ ไปถามบอสกัน']]},{c:'แต่สรุป DGA ส่วนใหญ่ผมเป็นคนทำนะ',o:[['📊 ระบบบันทึกชื่อคนวิเคราะห์ทุกครั้ง เปิดดูได้เลย',2,1,'…โอเค ผมอาจพูดเกินไปหน่อย'],['😤 โกหกหน้าตาย',0,3,'นายนี่มัน!'],['🤝 ช่างมันเถอะ',0,0,'ก็ดี']]}]},
+ ek:{topic:'ลัดขั้นตอนเพื่อความเร็ว',r:[{c:'งานซ่อมพัดลม ไม่ต้องติดป้าย LOTO หรอก สิบนาทีเสร็จ',o:[['📊 อุบัติเหตุส่วนใหญ่เกิดจากงานเล็กที่คิดว่าไม่เป็นไร ต้องทำทุกครั้ง',2,1,'…เออ เคยมีคนโดนไฟดูดมาแล้วจริง'],['😤 พี่ไม่รักชีวิตหรือไง',0,2,'พูดแรงไปแล้วนะ'],['🤝 เดี๋ยวช่วยติดป้ายให้ จะได้เร็ว',1,-1,'ได้ๆ มาช่วยกัน']]},{c:'มายด์ก็เข้มงวดเกินไป ทำงานไม่ทันพอดี',o:[['📊 ช้าลง 5 นาทีแต่ทุกคนได้กลับบ้าน คุ้มกว่าเยอะ',2,0,'โอเค ยอมก็ได้'],['😤 ก็ไปบ่นกับมายด์เองสิ',0,2,'กวนนะ'],['🤝 เดี๋ยวคุยกับมายด์ให้ปรับขั้นตอนให้คล่องขึ้น',1,0,'ถ้าช่วยได้ก็ขอบใจ']]}]},
+ ann:{topic:'กฎจัดซื้อ',r:[{c:'อะไหล่ต้องเทียบราคา 3 เจ้าทุกครั้ง ด่วนแค่ไหนก็ต้องรอ',o:[['📊 ระเบียบมีช่องจัดซื้อฉุกเฉินเมื่อหม้อแปลงเสี่ยงทริป ใช้ได้ถ้ามีเหตุผลเป็นลายลักษณ์อักษร',2,0,'…จริงด้วย ถ้าทำบันทึกมา พี่ใช้ช่องนั้นได้'],['😤 กฎบ้าอะไร ไฟจะดับอยู่แล้ว',0,3,'อย่ามาตะโกนใส่พี่นะ!'],['🤝 ช่วยหาใบเสนอราคาให้ครบวันนี้เลย',1,0,'ได้ ถ้าครบวันนี้ พี่เร่งให้']]},{c:'แล้วใครจะรับผิดชอบถ้าโดนตรวจสอบ?',o:[['📊 บันทึกเหตุผลพร้อมผล DGA และ Risk matrix แนบไว้ ตรวจสอบได้ทุกขั้น',2,0,'แบบนี้พี่สบายใจ'],['😤 พี่ก็กลัวแต่โดนตรวจ',0,3,'ก็หน้าที่พี่!'],['🤝 ให้บอสเซ็นอนุมัติร่วม',1,0,'ดี แบบนี้ปลอดภัย']]}]},
+ boss:{topic:'งบเปลี่ยนหม้อแปลง LKB-TR1',r:[{c:'งบปีนี้จำกัด ผมว่าซ่อม LKB-TR1 ไปก่อน ยังไม่ต้องเปลี่ยน',o:[['📊 HI ต่ำกว่า 35 และลดเร็วกว่า 10 ต่อปี ความเสี่ยงสูงมาก ถ้าทริปเสียหายมากกว่าค่าเปลี่ยน',2,0,'…ตัวเลขนี้ผมต้องเอาไปคุยกับผู้บริหาร'],['😤 บอสงกเกินไปครับ/ค่ะ',0,4,'ระวังคำพูดหน่อยนะ'],['🤝 ซ่อมก่อนแต่เฝ้าระวังถี่ และตั้งงบปีหน้า',1,0,'ข้อเสนอนี้ฟังขึ้น']]},{c:'ถ้าเปลี่ยน ใครจะการันตีว่าคุ้ม?',o:[['📊 ใช้ System reliability กับต้นทุนไฟดับของลูกค้ามาคำนวณให้ดู',2,0,'ดี ทำตัวเลขมาให้ผมพรุ่งนี้'],['😤 การันตีเองครับ/ค่ะ',0,1,'มั่นใจเกินไปหรือเปล่า'],['🤝 ขอปรึกษาพี่ต้อมก่อน',1,0,'ได้ ทำงานเป็นทีมดี']]}]},
+ prae:{topic:'แผนงานเร่งด่วน',r:[{c:'แผน PM เดือนหน้าห้ามแก้แล้ว ล็อกไว้หมดแล้ว',o:[['📊 แต่ LKB-TR1 ความเสี่ยงขึ้นเป็น Very high ต้องเพิ่มรอบเก็บน้ำมันเป็นทุก 2 สัปดาห์',2,0,'…โอเค ถ้าข้อมูลเปลี่ยน แผนก็ต้องเปลี่ยน'],['😤 แพรยึดแผนเกินไป',0,3,'ฉันทำงานหนักกับแผนนี้นะ!'],['🤝 ขอแก้เฉพาะลูกที่ความเสี่ยงเปลี่ยน',1,0,'ได้ เฉพาะส่วนนั้นนะ']]},{c:'แล้วคนจะพอเหรอ?',o:[['📊 ย้ายงาน PM ของลูกความเสี่ยงต่ำไปเป็น BM ได้คนเพิ่มพอดี',2,0,'เยี่ยม คำนวณไว้แล้วด้วย'],['😤 ก็หาเอาเองสิ',0,3,'ไม่ช่วยคิดเลย!'],['🤝 ขอเจมส์มาช่วยเพิ่ม',1,0,'ลองถามพี่เอกดู']]}]}
+};
+const CONFLICTS={
+ 'ek|tom':{v:-5,topic:'จะเปิดฝาตรวจ LKB-TR1 หรือดูข้อมูลก่อน',lines:[['ek','ผมว่าเปิดฝาตรวจภายในเลย จะมานั่งดูกราฟทำไมเสียเวลา!'],['tom','ข้อมูล DGA ยังไม่ชัด เปิดฝาทีต้องหยุดจ่ายไฟทั้งวันนะเอก'],['ek','พี่ต้อมก็เอาแต่ตัวเลข ไม่เคยลงมือเองสักที!'],['tom','พูดแบบนี้ได้ยังไง พี่ทำงานมายี่สิบปีนะ']],
+  opts:[['⚖️ เสนอให้เก็บ DGA ซ้ำและสแกน IR ก่อน แล้วค่อยตัดสินใจเปิดฝาร่วมกัน',{m:1}],['👍 เห็นด้วยกับพี่เอก ลงมือเลย',{s:'ek'}],['👍 เห็นด้วยกับพี่ต้อม ดูข้อมูลก่อน',{s:'tom'}]]},
+ 'chan|prae':{v:-20,topic:'แผน PM ใหม่ตาม RCM',lines:[['chan','แผนใหม่อะไรนี่ ตัดงาน PM ทิ้งตั้งครึ่ง! สมัยลุงทำทุกอย่างทุกปี ไม่เคยพัง'],['prae','ลุงคะ งานที่ RPN ต่ำทำไปก็เปลืองคนเปลืองเงิน ข้อมูลชัดเจนนะคะ'],['chan','ข้อมูลๆ เด็กสมัยนี้ไม่เคยจับประแจ!'],['prae','ไม่ต้องเหน็บแนมกันก็ได้ค่ะลุง']],
+  opts:[['⚖️ ชวนลุงชาญมาร่วมทบทวน FMEA เพราะประสบการณ์ลุงช่วยประเมินค่า O ได้แม่น',{m:1}],['👍 เข้าข้างลุงชาญ',{s:'chan'}],['👍 เข้าข้างแพร',{s:'prae'}]]},
+ 'beer|mind':{v:-15,topic:'ไม่ใส่หมวกนิรภัย',lines:[['mind','เบียร์! เข้าลานไกไฟฟ้าทำไมไม่ใส่หมวกนิรภัย ครั้งที่สามแล้วนะ'],['beer','แหม แค่เดินผ่านแป๊บเดียวเองพี่มายด์ ร้อนจะตาย'],['mind','แป๊บเดียวก็ตายได้! เดี๋ยวพี่เขียนใบเตือนเลย'],['beer','จะอะไรนักหนาเนี่ย!']],
+  opts:[['⚖️ สนับสนุนกฎความปลอดภัย แต่ขอเตือนด้วยวาจาครั้งนี้ และหาหมวกแบบระบายอากาศให้',{m:1}],['👍 เข้าข้างเบียร์ ร้อนจริง',{s:'beer',bad:1}],['👍 เข้าข้างพี่มายด์',{s:'mind'}]]},
+ 'fon|ton':{v:-10,topic:'ใครเป็นคนเจอจุดร้อน',lines:[['fon','ต้น! ไปบอกบอสว่าเป็นคนเจอจุดร้อนได้ไง ฉันสแกนเองนะ'],['ton','ผมเป็นคนส่งรายงานเข้าระบบนี่ ก็ผลงานทีมไง'],['fon','ทีมอะไร แกเอาชื่อตัวเองใส่คนเดียว!'],['ton','อย่าดราม่าน่า ฝน']],
+  opts:[['⚖️ เสนอให้ใส่ชื่อทุกคนที่ทำงานในรายงาน และแจ้งบอสตามจริง',{m:1}],['👍 เข้าข้างฝน',{s:'fon'}],['👍 เข้าข้างต้น',{s:'ton',bad:1}]]},
+ 'ann|ek':{v:-15,topic:'อะไหล่ล่าช้า',lines:[['ek','พี่แอน ปะเก็นบุชชิ่งสั่งไปสองอาทิตย์แล้ว ยังไม่มาอีก!'],['ann','เอกส่งใบขอซื้อไม่ครบ ไม่มีสเปก จะซื้อได้ไง'],['ek','ระบบเยอะแยะ หม้อแปลงรั่วอยู่นะ!'],['ann','กฎก็คือกฎ ไม่ใช่ใครตะโกนดังแล้วได้ก่อน']],
+  opts:[['⚖️ อาสาช่วยทำสเปกให้ครบวันนี้ แล้วขอพี่แอนเร่งเป็นงานด่วน',{m:1}],['👍 เข้าข้างพี่เอก',{s:'ek'}],['👍 เข้าข้างพี่แอน',{s:'ann'}]]},
+ 'ek|mind':{v:-5,topic:'Lock-out/Tag-out',lines:[['mind','พี่เอก ทำไมเริ่มงานก่อนติดป้าย LOTO!'],['ek','ตัดไฟแล้ว รู้อยู่แล้วน่า เสียเวลา'],['mind','ขั้นตอนมีไว้กันตาย ไม่ใช่กันเสียเวลา!'],['ek','สอนหนังสือสังฆราชหรือไง']],
+  opts:[['⚖️ ยืนยันต้องทำ LOTO ทุกครั้ง แต่ช่วยเตรียมชุดป้ายไว้หน้างานให้เร็วขึ้น',{m:1}],['👍 เข้าข้างพี่เอก',{s:'ek',bad:1}],['👍 เข้าข้างพี่มายด์',{s:'mind'}]]},
+ 'beer|ek':{v:0,topic:'แอบงีบเวลางาน',lines:[['ek','เบียร์! หายไปไหนมาชั่วโมงนึง งานค้างเต็มเลย'],['beer','ไปพักสายตาแป๊บเดียวเองพี่ ลูกร้องทั้งคืน'],['ek','ทุกคนก็เหนื่อย ไม่ใช่แกคนเดียว!'],['beer','พี่ไม่เคยเข้าใจใครเลย']],
+  opts:[['⚖️ เสนอให้เบียร์ทำงานชดเชยช่วงบ่าย และปรับกะให้เหมาะช่วงลูกเล็ก',{m:1}],['👍 เข้าข้างพี่เอก',{s:'ek'}],['👍 เข้าข้างเบียร์',{s:'beer'}]]}
+};
+const pairKey=(a,b)=>Object.keys(CONFLICTS).find(k=>k===a+'|'+b||k===b+'|'+a);
+const npcById=id=>W.npcs.find(n=>n.d.id===id);
+function isMad(id){return S.mad&&S.mad[id]>=S.day;}
+function setMad(id,days){S.mad=S.mad||{};S.mad[id]=S.day+days;log(`💢 ${NPC(id).name} โกรธคุณแล้ว (ผิดใจกัน ${days} วัน) — ลองไปง้อด้วยการขอโทษหรือให้ของฝาก`,'bad');}
+function reconcile(id){
+  advance(5);const gave=S.gave&&S.gave[id]===S.day;const ok=gave||S.fr[id]>=35||Math.random()<.45;
+  convPush(id,'me','ขอโทษนะเรื่องเมื่อวาน ไม่ได้ตั้งใจเลย 🙏');
+  if(ok){S.mad[id]=0;S.fr[id]+=4;convPush(id,'npc',pick(['…อืม ไม่เป็นไรแล้ว ลืมๆ ไปเถอะ','โอเค หายโกรธแล้ว ครั้งหน้าคุยกันดีๆ นะ','ขอบใจที่มาขอโทษนะ']));toast(`🤝 คืนดีกับ ${NPC(id).name} แล้ว`,'ok');}
+  else convPush(id,'npc',pick(['ยังไม่อยากคุย ขอเวลาหน่อย','ขอโทษแค่นี้เหรอ…']));
+}
+// ---- player debate ----
+function startDebate(id){
+  const D=DEBATE[id];if(!D)return;S.debated=S.debated||{};S.debated[id]=S.day;closePanel();advance(3);debateRound(id,0,0,0);
+}
+function debateRound(id,i,P,A){
+  const D=DEBATE[id],n=NPC(id);
+  if(i>=D.r.length||A>=4){
+    let title,html;
+    if(A>=4){S.fr[id]-=15;S.mood-=5;S.rep-=2;setMad(id,2);title=`💢 ทะเลาะกับ ${n.name}`;html=`<p>คุยกันไม่รู้เรื่อง เสียงดังจนทั้งออฟฟิศหันมามอง… ${id==='boss'?'':'บอสได้ยินด้วย'}</p><p class="muted">มิตรภาพ −15 · ชื่อเสียง −2 · ${n.name} โกรธ 2 วัน</p>`;if(id!=='boss')msg('boss','boss','ได้ยินว่าทะเลาะกันเสียงดัง มีอะไรคุยกันดีๆ นะ',[{t:'ขอโทษครับ/ค่ะ จะระวัง',fr:{boss:1}}]);}
+    else if(P>=3){S.rep+=id==='boss'?5:3;S.xp+=6;S.fr[id]+=A<=1?3:-2;S.mood+=4;title=`🏆 โน้มน้าว ${n.name} สำเร็จ`;html=`<p>${n.name} ยอมรับเหตุผลของคุณ — ใช้ข้อมูลและความเคารพได้ผลเสมอ</p><p class="muted">ชื่อเสียง +${id==='boss'?5:3} · XP +6</p>`;log(`🗣️ ถกเรื่อง "${D.topic}" กับ ${n.name} แล้วชนะด้วยเหตุผล`,'ok');}
+    else{S.fr[id]-=1;title='🤷 ต่างคนต่างความเห็น';html=`<p>ยังไม่มีใครยอมใคร แต่ก็จบกันด้วยดี</p>`;}
+    norm();enqueue({title,html,choices:[{label:'ตกลง',cls:'pri',fn:()=>{}}]});after();return;}
+  const R=D.r[i];
+  enqueue({title:`🗣️ ถกกับ ${n.name}: ${D.topic}`,html:`<div class="dlg">"${R.c}"</div><div class="muted">💡 เหตุผลด้วยข้อมูลหนักแน่นที่สุด · คำพูดแรงๆ ทำให้ทะเลาะกัน<br>ความน่าเชื่อ ${'🟩'.repeat(P)}${'⬜'.repeat(Math.max(0,3-P))} · อารมณ์ ${'🟥'.repeat(A)}${'⬜'.repeat(Math.max(0,4-A))}</div>`,
+    choices:R.o.map(([t,p,a,rep])=>({label:t,fn:()=>{const nP=P+p,nA=Math.max(0,A+a);setTimeout(()=>enqueue({title:n.name,html:`<div class="dlg">"${rep}"</div>`,choices:[{label:'ต่อ ›',cls:'pri',fn:()=>debateRound(id,i+1,nP,nA)}]}),0);}}))});
+}
+// ---- NPC vs NPC arguments ----
+function maybeArgue(){
+  if(W.argue||S.phase!=='work'||S.loc!=='estate'||S.min<540||S.min>=990||(S.min>=700&&S.min<790))return;
+  if(Math.random()>.25)return;
+  const ks=Object.keys(CONFLICTS).filter(k=>(S.pair[k]??CONFLICTS[k].v)<25&&k.split('|').every(id=>{const n=npcById(id);return n&&n.vis;}));
+  if(!ks.length)return;const k=pick(ks),[a,b]=k.split('|'),A=npcById(a),B=npcById(b);
+  A.job={uid:JOBUID++,kind:'argue',label:'💢 กำลังเถียงกัน',z:A.zone,x:A.x,y:A.z,dur:9999,anim:false};A.atJob=false;A.jobEnd=0;
+  B.job={uid:JOBUID++,kind:'argue',label:'💢 กำลังเถียงกัน',z:A.zone,x:A.x+1.4,y:A.z+.3,dur:9999,anim:false};B.atJob=false;B.jobEnd=0;
+  W.argue={k,a,b,i:-1,t:0,started:false,t0:absMin()};
+  toast(`💢 ${A.d.name} กับ ${B.d.name} กำลังมีปากเสียงกันเรื่อง "${CONFLICTS[k].topic}" — ดูจุด 💢 บนแผนที่`,'warn');
+}
+function argueTick(dt){
+  const G=W.argue;if(!G)return;const A=npcById(G.a),B=npcById(G.b),C=CONFLICTS[G.k];
+  if(S.phase!=='work'||(S.min>=720&&S.min<780)||S.loc!=='estate'||absMin()-G.t0>90){resolveArgue('ignore');return;}
+  if(!G.started){if(A.atJob&&B.atJob){G.started=true;G.t=99;}else return;}
+  G.t+=dt;
+  if(G.t>3.6){G.t=0;G.i++;
+    if(G.i>=C.lines.length+2){resolveArgue('ignore');return;}
+    const L=C.lines[G.i%C.lines.length];[A,B].forEach(n=>{n.bub.visible=n.d.id===L[0];});const sp=npcById(L[0]);sp.bub.userData.draw([{t:L[1].slice(0,30),s:30,b:1,c:'#111'},{t:L[1].slice(30,62),s:30,c:'#111'}]);}
+  // face each other
+  A.ry=Math.atan2(B.x-A.x,B.z-A.z);B.ry=Math.atan2(A.x-B.x,A.z-B.z);
+}
+function argueModal(){
+  const G=W.argue;if(!G)return;const C=CONFLICTS[G.k],A=NPC(G.a),B=NPC(G.b);G.paused=true;
+  enqueue({title:`💢 ${A.name} vs ${B.name}: ${C.topic}`,html:C.lines.map(([w,t])=>`<div class="dlg" style="border-left-color:${w===G.a?'#58a6ff':'#f778ba'}"><b>${NPC(w).name}:</b> ${t}</div>`).join('')+'<p class="muted">คุณจะทำยังไง? การไกล่เกลี่ยที่ยุติธรรมและใช้ข้อมูลช่วยให้ทีมกลับมาดีกัน</p>',
+    choices:[...C.opts.map(([t,e])=>({label:t,fn:()=>resolveArgue(e)})),{label:'🤐 ไม่ยุ่ง เดินออกมา',fn:()=>resolveArgue('ignore')}]});
+}
+function resolveArgue(e){
+  const G=W.argue;if(!G)return;W.argue=null;const k=G.k,[a,b]=k.split('|'),A=npcById(a),B=npcById(b);
+  [A,B].forEach(n=>{if(n){n.job=null;n.atJob=false;n.nextJob=absMin()+ri(10,30);n.bub.visible=false;}});
+  const cur=S.pair[k]??CONFLICTS[k].v;
+  if(e==='ignore'){S.pair[k]=cur-8;msg('team',a,pick(['เหนื่อยใจกับบางคนจริงๆ','ไม่อยากทำงานกับคนแบบนี้เลย 😤']));msg('team',b,pick(['ใครเริ่มก่อนล่ะ!','พอเถอะ ไม่อยากเถียงแล้ว']));log(`💢 ${NPC(a).name} กับ ${NPC(b).name} ยังผิดใจกันอยู่ บรรยากาศในทีมไม่ค่อยดี`,'warn');return;}
+  advance(15);
+  if(e.m){S.pair[k]=cur+25;S.fr[a]+=4;S.fr[b]+=4;S.rep+=3;S.xp+=6;S.mood+=3;log(`⚖️ ไกล่เกลี่ย ${NPC(a).name} กับ ${NPC(b).name} สำเร็จ ทั้งคู่ยอมรับข้อเสนอ`,'ok');msg('team','boss','ขอบใจที่ช่วยไกล่เกลี่ยนะ ทีมเราต้องคุยกันด้วยเหตุผล 👍',[{t:'ยินดีครับ/ค่ะ',fr:{boss:2}}]);}
+  else{const win=e.s,lose=win===a?b:a;S.pair[k]=cur-5;S.fr[win]+=5;S.fr[lose]-=9;if(S.fr[lose]<15)setMad(lose,1);
+    if(e.bad){S.rep-=3;log(`⚠️ เข้าข้าง ${NPC(win).name} ในเรื่องที่ไม่ถูกต้อง บอสไม่พอใจ (ชื่อเสียง −3)`,'bad');}else log(`👍 เข้าข้าง ${NPC(win).name} — ${NPC(lose).name} ไม่ค่อยพอใจ`,'warn');}
+  norm();
+}
+function teamRelHTML(){return Object.keys(CONFLICTS).map(k=>{const v=S.pair[k]??CONFLICTS[k].v,[a,b]=k.split('|');return `<div class="mrow"><span>${NPC(a).name} ↔ ${NPC(b).name}<br><small class="muted">${CONFLICTS[k].topic}</small></span><span>${v>=25?'😊 ดีกันแล้ว':v>=0?'😐 เฉยๆ':v>=-30?'😒 ตึงๆ':'😠 ผิดใจ'}</span></div>`;}).join('');}
+// ---- buildings ----
+function buildTeamBuildings(){
+  const deskM=M(0x8b6a4a,{roughness:.6}),dark=M(0x2a2f36,{roughness:.5,metalness:.3}),chairM=M(0x333a44);
+  const desk=(x,z,col)=>{B(1.8,.06,.9,deskM,x,.76,z,EG,true);[[-.8,-.4],[.8,-.4],[-.8,.4],[.8,.4]].forEach(([a,b])=>B(.05,.74,.05,dark,x+a,.37,z+b,EG));B(.7,.45,.05,dark,x,1.08,z-.3,EG);B(.62,.38,.02,M(col,{emissive:col,emissiveIntensity:.8}),x,1.08,z-.27,EG).castShadow=false;B(.5,.5,.5,chairM,x,.25,z+.85,EG);};
+  building('อาคารวางแผน & ความปลอดภัย',38,50,-27,-17,3.4,M(0xe6eaf0,{roughness:.85}),M(0x4a5a7a,{roughness:.6,metalness:.3}),{s:[[43,45]]},'#7a8cb0');
+  sign('📅 Planning · 🦺 Safety · 📦 Procurement',44,4.4,-16.6,EG,{scale:4.4,w:640});
+  desk(40,-25.5,0x8e5bb5);desk(44,-25.5,0x58a6ff);desk(48,-25.5,0xd9a3b5);desk(40,-20.5,0xff8c1a);desk(48,-20.5,0x3fb950);
+  B(3,1.6,.06,M(0xffffff,{emissive:0xffffff,emissiveIntensity:.15}),44,1.9,-26.9,EG);
+  sign('🦺 วันทำงานปลอดอุบัติเหตุ 312 วัน',44,3,-26.5,EG,{w:520,scale:2.4,s:36});
+  building('โรงซ่อมบำรุง (Workshop)',-14,-6,30,40,3.8,M(0xb8b0a0,{roughness:.9}),M(0x6b5a3a,{roughness:.7,metalness:.2}),{e:[[33,35]]},'#8a7a5a');
+  sign('🛠️ โรงซ่อมบำรุง',-6,4.8,34,EG,{scale:3});
+  B(1,.9,8,M(0x5a4a3a,{roughness:.7}),-13.3,.45,35,EG,true);B(1.05,.06,8.1,M(0x777777,{metalness:.6}),-13.3,.92,35,EG);
+  for(let i=0;i<6;i++)B(.06,.3+Math.random()*.3,.04,M(0xa0a6ad,{metalness:.9}),-13.6,1.4,32+i*.9,EG);B(.05,1.2,7,M(0x3a3a3a),-13.75,1.6,35,EG);
+  C(.12,.12,1.5,M(0x6e4026,{roughness:.35}),-8,1,39,EG,12);for(let s=0;s<6;s++)C(.22,.22,.05,M(0x6e4026),-8,.5+s*.2,39,EG,14);
+  B(1.2,1,1,M(0x2c3e50,{metalness:.5}),-7.5,.5,31.2,EG,true);B(1.4,.15,1.4,M(0x9b7b4f),-10,.08,39,EG,true);
+}
+function bubbleSprite(){
+  const w=560,h=150,c=document.createElement('canvas');c.width=w;c.height=h;const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false,depthTest:false}));sp.scale.set(3.2,3.2*h/w,1);sp.renderOrder=10;
+  sp.userData.draw=(ls)=>{const g=c.getContext('2d');g.clearRect(0,0,w,h);g.fillStyle='rgba(255,255,255,.95)';g.strokeStyle='#e85d3a';g.lineWidth=6;const r=30;
+    g.beginPath();g.moveTo(r,6);g.arcTo(w-6,6,w-6,h-30,r);g.arcTo(w-6,h-30,6,h-30,r);g.lineTo(w/2+18,h-30);g.lineTo(w/2,h-4);g.lineTo(w/2-18,h-30);g.arcTo(6,h-30,6,6,r);g.arcTo(6,6,w-6,6,r);g.closePath();g.fill();g.stroke();
+    g.textAlign='center';g.textBaseline='middle';ls.forEach((l,i)=>{g.fillStyle=l.c||'#111';g.font=`${l.b?'700 ':''}${l.s||30}px system-ui,"Noto Sans Thai",Tahoma,sans-serif`;g.fillText(l.t,w/2,ls.length>1?(i?82:42):60);});t.needsUpdate=true;};
+  sp.userData.draw([{t:''}]);return sp;
+}
+EVENTS.push(()=>({title:'😤 ต้นเอาผลงานไปรายงานบอส',html:'<p>เมื่อเช้าต้นบอกคุณวิชัยว่าเขาเป็นคนวิเคราะห์ปัญหาหม้อแปลงที่คุณทำเมื่อวาน…</p>',choices:[
+  {label:'🗣️ ไปเถียงกับต้นให้รู้เรื่อง',cls:'pri',fn:()=>startDebate('ton')},
+  {label:'💬 แจ้งบอสตามจริงแบบสุภาพ พร้อมหลักฐานในระบบ',fn:()=>{advance(15);S.rep+=2;S.fr.ton-=4;S.fr.boss+=2;log('💬 บอสตรวจในระบบแล้วรู้ว่าใครทำจริง','ok');}},
+  {label:'🤐 ปล่อยไป ไม่อยากมีเรื่อง',fn:()=>{S.mood-=4;S.rep-=1;}}]}));
+
 /* ---------- boot ---------- */
 (function boot(){
   if(!window.THREE){$('#loading').innerHTML='⚠️ โหลดเอนจิน 3 มิติไม่สำเร็จ<br><span class="muted">ลองรีเฟรชหน้านี้อีกครั้ง</span>';return;}
   let loaded=load();if(loaded&&(S.over||!S.tx||!S.car)){loaded=false;}
-  if(loaded){S.love=S.love||{fon:5,james:5};S.rel=S.rel||{};S.conv=S.conv||{};S.topic=S.topic||{};S.tspeed=S.tspeed||2.5;S.inv.gifts=S.inv.gifts||0;}
+  if(loaded){S.pair=S.pair||{};S.mad=S.mad||{};NPCS.forEach(n=>{if(S.fr[n.id]===undefined)S.fr[n.id]=n.fr;});Object.keys(CHAT_META).forEach(k=>{if(!S.chats[k])S.chats[k]=[];if(S.unread[k]===undefined)S.unread[k]=0;});S.love=S.love||{fon:5,james:5};S.rel=S.rel||{};S.conv=S.conv||{};S.topic=S.topic||{};S.tspeed=S.tspeed||2.5;S.inv.gifts=S.inv.gifts||0;}
   if(!loaded)newGame();
   initWorld();
   if(loaded&&S.px!==undefined){W.pl.x=S.px;W.pl.z=S.pz;W.driving=false;setLoc();collide(W.pl);}else place('estate');
