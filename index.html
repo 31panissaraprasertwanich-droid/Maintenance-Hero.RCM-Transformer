@@ -128,7 +128,7 @@ body.touch #prompt{bottom:160px}
   <div class="chips" id="stats"></div>
   <div class="glass clockbox"><div id="dayLbl"></div><div id="timeLbl"></div><div id="phaseLbl"></div></div>
   <div id="rightCol">
-    <div class="hbtns"><button data-a="phone" class="bdg" title="โทรศัพท์ (P)">📱<i id="phbadge"></i></button><button data-a="status" title="สถานะ">📋</button><button data-a="help" title="คู่มือ">📘</button><button data-a="reset" title="เริ่มใหม่">↺</button></div>
+    <div class="hbtns"><button data-a="tspeed" id="tsBtn" title="ความเร็วเวลา">🚶</button><button data-a="phone" class="bdg" title="โทรศัพท์ (P)">📱<i id="phbadge"></i></button><button data-a="status" title="สถานะ">📋</button><button data-a="help" title="คู่มือ">📘</button><button data-a="reset" title="เริ่มใหม่">↺</button></div>
     <canvas id="mini" width="250" height="170"></canvas>
     <div id="tracker" class="glass"></div>
   </div>
@@ -199,7 +199,7 @@ const NPCS=[
  {id:'tom',name:'พี่ต้อม',role:'วิศวกรอาวุโส',shirt:0x2e7d4f,pants:0x2a2f3a,hair:0x1d1410,work:{z:'office',x:6,y:-17.6},lunch:{x:-23,y:-21.8},fr:20},
  {id:'fon',name:'ฝน',role:'วิศวกรบำรุงรักษา (รุ่นเดียวกัน)',shirt:0xb5487a,pants:0x2f3550,hair:0x2a1810,work:{z:'office',x:-4,y:-17.6},lunch:{x:-29,y:-21.8},fr:30},
  {id:'noi',name:'พี่หน่อย',role:'นักเคมีห้องแล็บน้ำมัน',shirt:0xf2f2f2,pants:0x3a3a4a,hair:0x3a2416,work:{z:'lab',x:29,y:-21},lunch:{x:-29,y:-17.8},fr:15},
- {id:'james',name:'น้องเจมส์',role:'ช่างเทคนิคภาคสนาม',shirt:0xe8761e,pants:0x22324a,hair:0x111111,work:{z:'lkb',x:-24,y:33.2},work2:{z:'clk',x:24,y:33.2},lunch:{x:-23,y:-17.8},fr:20}
+ {id:'james',name:'น้องเจมส์',role:'ช่างเทคนิคภาคสนาม',shirt:0xe8761e,pants:0x22324a,hair:0x111111,work:{z:'lkb',x:-24.25,y:40.6},work2:{z:'clk',x:31.75,y:40.6},lunch:{x:-23,y:-17.8},fr:20}
 ];
 const LUNCH=[
  {id:'kaprao',name:'ข้าวกะเพราไก่ไข่ดาว',icon:'🍳',money:-55,energy:15,mood:5},
@@ -256,6 +256,7 @@ function newGame(){
   NPCS.forEach(n=>S.fr[n.id]=n.fr);
   Object.assign(S,{clean:85,outfit:'work',fridge:{rice:6,egg:6,pork:2,basil:2,garlic:4,veg:2,shrimp:1,herb:1,noodle:3},chats:{},unread:{},mf:{},delivery:[],momCall:0,car:{loc:'estate',x:9,z:21.5,ry:Math.PI}});
   Object.keys(CHAT_META).forEach(k=>{S.chats[k]=[];S.unread[k]=0;});
+  Object.assign(S,{love:{fon:5,james:5},rel:{},conv:{},topic:{},tspeed:2.5});S.inv.gifts=0;
   S.chats.team.push({f:'tom',x:'ยินดีต้อนรับน้องใหม่เข้าทีมนะ 🎉 มีอะไรถามได้ตลอด',t:'07:55',r:[{t:'ขอบคุณครับ ฝากตัวด้วยครับ 🙏',fr:{tom:2,fon:2,james:2,noi:2}}]});S.unread.team=1;
   S.chats.mom.push({f:'mom',x:'วันแรกที่ทำงานใหม่ สู้ๆ นะลูก ❤️',t:'07:30',r:[{t:'ขอบคุณครับแม่ 🥰',mood:5}]});S.unread.mom=1;
   TX_INIT.forEach(d=>{
@@ -574,7 +575,7 @@ function eatLunch(id){
   if(S.money+L.money<0){toast('เงินไม่พอ','warn');return;}
   advance(30);S.money+=L.money;S.energy+=L.energy;S.mood+=L.mood;S.ateLunch=S.day;
   const mates=W.npcs?W.npcs.filter(n=>n.zone==='canteen'&&n.vis).map(n=>n.d):[];
-  mates.forEach(n=>S.fr[n.id]+=3);if(mates.length)S.mood+=3;
+  mates.forEach(n=>S.fr[n.id]+=3);if(mates.length)S.mood+=3;const pt=mates.find(n=>S.rel[n.id]==='partner');if(pt){S.mood+=4;gain(pt.id,'love',2);}
   closePanel();
   toast(`${L.icon} ${L.name} อร่อยมาก!${mates.length?` กินกับ ${mates.map(n=>n.name).join(', ')} (มิตรภาพ +3)`:''}`,'ok');
 }
@@ -614,7 +615,7 @@ function startDay(){
 }
 function goWork(absent){
   travel('estate',30,'🚗 ขับรถไปนิคมอุตสาหกรรมลาดกระบัง...',()=>{
-    S.phase='work';place('estateGate');S.tasks=genTasks();S.quiz=null;
+    S.phase='work';place('estateGate');S.tasks=genTasks();S.quiz=null;W.npcs.forEach(n=>{n.job=null;n.atJob=false;n.nextJob=absMin()+ri(5,30);});
     if(S.outfit!=='work'){S.rep-=3;log('👔 แต่งกายผิดระเบียบ! ต้องใส่ชุดช่าง+PPE — เปลี่ยนที่ล็อกเกอร์ในออฟฟิศ','bad');}
     msg('boss','boss',`อรุณสวัสดิ์ งานวันนี้:\n${S.tasks.map(k=>'• '+taskText(k)).join('\n')}`,[{t:'รับทราบครับ 🙏',fr:{boss:1}},{t:'👍',fr:{}}]);
     const late=S.min-480;
@@ -701,7 +702,7 @@ function showNext(){
 }
 let panelFn=null,panelOpen=false;
 function openPanel(fn){panelFn=fn;panelOpen=true;$('#panel').classList.remove('hidden');refreshPanel();}
-function refreshPanel(){if(panelOpen&&panelFn){const sc=$('#panel').scrollTop;$('#pbody').innerHTML=`<button class="pclose" data-a="close">✕ ปิด</button>`+panelFn();$('#panel').scrollTop=sc;}}
+function refreshPanel(){if(panelOpen&&panelFn){const sc=$('#panel').scrollTop;$('#pbody').innerHTML=`<button class="pclose" data-a="close">✕ ปิด</button>`+panelFn();$('#panel').scrollTop=sc;const cb=document.getElementById('convbox');if(cb)cb.scrollTop=cb.scrollHeight;}}
 function closePanel(){panelOpen=false;$('#panel').classList.add('hidden');try{$('#c').focus();}catch(e){}}
 function toast(msg,type=''){const t=document.createElement('div');t.className='glass toast '+type;t.innerHTML=msg;$('#toasts').prepend(t);while($('#toasts').children.length>3)$('#toasts').lastChild.remove();setTimeout(()=>t.remove(),4200);}
 function fade(on,text){if(text!==undefined)$('#fadeText').innerHTML=text;$('#fade').classList.toggle('on',on);}
@@ -713,6 +714,7 @@ function restart(){Q=[];try{localStorage.removeItem(SAVE);}catch(e){}location.re
    UI RENDER
    ===================================================================== */
 function stat(icon,label,val,max,color,txt){return `<div class="glass chip"><div class="sl">${icon} ${label}<b>${txt??Math.round(val)}</b></div><div class="sb"><i style="width:${clamp(val/max*100,0,100)}%;background:${color}"></i></div></div>`;}
+const TSP=[[4,'🐢','ช้ามาก (1 นาทีเกม = 4 วินาที)'],[2.5,'🚶','ปกติ (1 นาทีเกม = 2.5 วินาที)'],[1.5,'🏃','เร็ว (1 นาทีเกม = 1.5 วินาที)'],[1,'🐇','เร็วมาก (1 นาทีเกม = 1 วินาที)']];
 const PHL={morning:'🌅 เช้า — เตรียมไปทำงาน',work:'🏭 เวลางาน',ot:'🌙 ทำ OT',evening:'🌆 หลังเลิกงาน',holiday:'🌴 วันหยุด',sleep:'😴 นอนหลับ'};
 function hud(){
   $('#dayLbl').textContent=`วันที่ ${S.day} · ${DAYS[S.day%7]}`;
@@ -734,6 +736,7 @@ function hud(){
     (S.labRes.length?`<div style="color:#8be3a1">🧪 ผลแล็บรอวิเคราะห์ ${S.labRes.length}</div>`:'')+
     (S.lab.length?`<div style="color:var(--muted)">⏳ แล็บกำลังวิเคราะห์ ${S.lab.length} ตัวอย่าง</div>`:'');
   renderPhone();
+  const tb=$('#tsBtn');if(tb){const T=TSP.find(x=>x[0]===(S.tspeed||2.5))||TSP[1];tb.textContent=T[1];tb.title='ความเร็วเวลา: '+T[2];}
 }
 function renderLog(){$('#minilog').innerHTML=S.log.slice(0,4).map(l=>`<div class="lg ${l.type}"><time>${l.t}</time>${l.msg}</div>`).join('');}
 const pill=(txt,c)=>`<span class="pill" style="background:${c}22;color:${c};border:1px solid ${c}55">${txt}</span>`;
@@ -833,28 +836,12 @@ function wsPanel(){
   return `<div class="app"><div class="apph"><span style="font-size:22px">⚡</span><div><b>RCM Transformer</b><small>Monitor · Analyze · Plan · Maintain</small></div></div><div class="appb"><div class="tabs">${tabs.map(([k,l])=>`<button class="${S.ws===k?'sel':''}" data-a="wstab" data-x="${k}">${l}</button>`).join('')}</div>${body}</div></div>`;
 }
 function frBar(id){const v=S.fr[id];return `<div class="fr">🤝 มิตรภาพ <div class="sb"><i style="width:${v}%;background:var(--pink)"></i></div><b style="color:var(--text)">${Math.round(v)}</b></div>`;}
-function npcPanel(id){
-  return ()=>{const n=NPC(id),w=isWork();
-    if(id==='boss'){const nx=LEVELS[S.level+1],trip=S.tx.filter(t=>t.trip);
-      const line=S.clean<25?'"เอ่อ... เมื่อคืนไม่ได้อาบน้ำเหรอ? ดูแลตัวเองหน่อยนะ"':trip.length?`"${trip.map(t=>t.id).join(', ')} ทริปอยู่! ลูกค้าโทรมาหลายรายแล้ว รีบแก้ไขด่วน!"`:S.tasks.every(k=>k.done)?'"วันนี้ทำงานครบ ดีมาก! แบบนี้แหละมืออาชีพ"':`"${pick(LINES.boss)}"`;
-      return `<h2>👔 ${n.name}</h2><p class="muted">${n.role}</p>${frBar(id)}<div class="dlg">${line}</div>
-      <h3>📋 งานที่มอบหมายวันนี้</h3>${S.tasks.map(k=>`<div class="tk ${k.done?'done':''}">${k.done?'☑':'☐'} ${taskText(k)}</div>`).join('')}
-      <div class="btns" style="margin-top:12px"><button class="pri" data-a="breport" ${S.inv.report&&w?'':'disabled'}>📄 ส่งรายงานประจำวัน</button>
-      ${nx?`<button data-a="promo" ${w?'':'disabled'}>🎖️ ขอประเมินเลื่อนเป็น ${nx.name}</button>`:''}
-      <button data-a="talk" data-x="boss" ${S.talked.boss===S.day?'disabled':''}>💬 คุยเรื่องงาน (5 นาที)</button></div>
-      ${nx?`<p class="muted" style="margin-top:8px">เงื่อนไขเลื่อนตำแหน่ง: XP ${S.xp}/${nx.xp} ${S.xp>=nx.xp?'✅':''} · ชื่อเสียง ${Math.round(S.rep)}/${nx.rep} ${S.rep>=nx.rep?'✅':''}</p>`:''}`;}
-    const sp={tom:['🧠 ขอคำแนะนำเรื่อง DGA/หม้อแปลง','มิตรภาพ ≥ 20'],noi:['⚡ ขอผลแล็บด่วน','มิตรภาพ ≥ 30'],james:['🔧 ขอให้ช่วยงานซ่อมวันนี้','มิตรภาพ ≥ 25 · ซ่อมเร็วขึ้น 40%'],fon:['📊 ขอให้ช่วยดู FMEA','มิตรภาพ ≥ 30 · แสดง RPN']}[id];
-    const lunch=S.min>=720&&S.min<780;
-    return `<h2>${n.name}</h2><p class="muted">${n.role}</p>${frBar(id)}<div class="dlg">"${lunch?'พักเที่ยงแล้ว กินอะไรกันดี?':S.phase==='ot'?'ยังไม่กลับอีกเหรอ?':pick(LINES[id])}"</div>
-      <div class="btns"><button data-a="talk" data-x="${id}" ${S.talked[id]===S.day?'disabled':''}>💬 คุยเล่น (5 นาที · มิตรภาพ +4)</button>
-      <button data-a="special" data-x="${id}" ${S.help[id]===S.day||!w?'disabled':''}>${sp[0]}</button></div><p class="muted" style="margin-top:6px">${sp[1]}</p>`;};
-}
 function canteenPanel(){
   const open=S.min>=690&&S.min<840;
   return `<h2>🍱 โรงอาหาร</h2><p class="muted">เปิด 11:30–14:00 · กินพร้อมเพื่อนช่วงพักเที่ยงได้มิตรภาพเพิ่ม</p>
   ${S.ateLunch===S.day?'<div class="dlg">อิ่มแล้ว! พักผ่อนสักครู่แล้วกลับไปทำงาน</div>':''}
   <div style="margin-top:10px">${LUNCH.map(L=>`<button class="ac" data-a="eat" data-x="${L.id}" ${open&&S.ateLunch!==S.day?'':'disabled'}><div class="an">${L.icon} ${L.name} — ${-L.money} ฿</div><div class="ae">⏱ 30 นาที · ⚡ +${L.energy} · 😊 +${L.mood}</div></button>`).join('')}</div>
-  ${open?'':'<p class="muted">ตอนนี้ร้านยังไม่เปิด</p>'}`;
+  ${open?'':'<p class="muted">ตอนนี้ร้านยังไม่เปิด</p>'}<button class="ac" data-a="buygift" data-x="snack"><div class="an">🎁 ซื้อขนมเค้กไว้เป็นของฝาก</div><div class="ae">💰 −35 · มี ${S.inv.gifts||0} ชิ้น</div></button>`;
 }
 function boardPanel(){
   return `<h2>📌 บอร์ดประกาศ ฝ่ายบำรุงรักษา</h2>
@@ -900,6 +887,8 @@ function help(){
   <tr><td>📷 IR</td><td>FM-02 จุดร้อน · FM-07 บุชชิ่ง · FM-09/10 ระบายความร้อน</td></tr>
   <tr><td>⚡ ทดสอบไฟฟ้า</td><td>FM-05 หน้าสัมผัส OLTC · FM-07 DF บุชชิ่ง · FM-03 PD · FM-01</td></tr>
   <tr><td>🧪 DGA/น้ำมัน</td><td>FM-01 กระดาษฉนวน · FM-02 ความร้อน · FM-03 PD/อาร์ก · FM-04 น้ำมันเสื่อม</td></tr></table>
+  <p><b>🤝 เพื่อนร่วมงาน:</b> ทุกคนมีงานของตัวเอง (ป้ายเหนือหัวบอกว่ากำลังทำอะไร) — เจมส์เดินตรวจหม้อแปลง ฝนสแกน IR/ทำ FMEA พี่ต้อมทดสอบไฟฟ้า พี่หน่อยเก็บน้ำมันที่เลยกำหนด แล้วแจ้งผลในแชท · กด E คุยแบบเลือกหัวข้อหรือพิมพ์คุยเอง · มิตรภาพ ≥ 40 ฝากงานเจมส์/ฝนได้</p>
+  <p><b>💕 ความรัก:</b> จีบฝนหรือน้องเจมส์ได้ — คุย จีบ ให้ของฝาก (ซื้อที่มุมกาแฟ/โรงอาหาร) → ชวนเดต (💕 ≥ 20) → สารภาพรัก (💕 ≥ 55) · ⏱ ปุ่มมุมขวาบนปรับความเร็วเวลา</p>
   <p><b>📱 โทรศัพท์ (ปุ่ม 📱 หรือกด P):</b> แชทกับทีม/บอส/เพื่อน/แม่ · โทรศูนย์ควบคุมขอลดโหลดหม้อแปลงเสี่ยงสูง · โทรแล็บ/ช่าง · ลาป่วย · สั่งของสดส่งถึงบ้าน</p>
   <p><b>🚗 ขับรถ:</b> เดินไปที่รถกด E · W/S เร่ง/ถอย · A/D เลี้ยว · Shift เร็ว · ขับออกประตูนิคมฯ เพื่อกลับบ้าน · ที่บ้านขับไปสุดถนนเพื่อไปทำงาน/เที่ยว</p>
   <p><b>🏠 บ้าน:</b> 🚿 อาบน้ำ (ความสะอาดต่ำ เพื่อนจะเลี่ยง) · 👕 เปลี่ยนชุด (ต้องใส่ชุดช่าง+PPE ไปทำงาน, ชุดนอนช่วยหลับสบาย) · 🍳 ทำอาหาร: เรียงขั้นตอนให้ถูกและจับจังหวะไฟ</p>
@@ -960,7 +949,7 @@ function initWorld(){
   S.tx.forEach(T=>buildTransformer(T));
   NPCS.forEach(d=>{const p=makePerson({shirt:d.shirt,pants:d.pants,hair:d.hair,hat:d.id==='james',vest:d.id==='james'});EG.add(p.g);
     const lb=labelSprite([{t:d.name,s:46,b:1},{t:d.role.split(' (')[0],s:30,c:'#9cc8ff'}],420,120,1.7);lb.position.y=2.55;p.g.add(lb);
-    const n={d,p,x:d.work.x,z:d.work.y,zone:d.work.z,path:[],goal:'',vis:true,ry:0};W.npcs.push(n);
+    const n={d,p,lb,x:d.work.x,z:d.work.y,zone:d.work.z,path:[],goal:'',vis:true,ry:0,job:null,nextJob:0};W.npcs.push(n);
     interact.push({loc:'estate',npc:n,r:1.9,get x(){return n.x;},get z(){return n.z;},label:()=>`คุยกับ ${d.name}`,use:()=>openPanel(npcPanel(d.id)),ok:()=>n.vis});});
   W.ready=true;
   addEventListener('resize',()=>{R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();});
@@ -1014,7 +1003,7 @@ function buildEstate(){
   // coffee
   B(.7,.85,.55,M(0x8a8f96,{metalness:.6,roughness:.3}),12.3,1.25,-18.5,EG,true);B(.9,.8,.7,deskM,12.3,.4,-18.5,EG,true);S3(.05,M(0xff3b30,{emissive:0xff3b30,emissiveIntensity:2}),11.93,1.5,-18.5,EG);
   sign('☕ กาแฟ',12.3,2.3,-18.5,EG,{w:260,scale:1.2});
-  interact.push({loc:'estate',x:11.4,z:-18.5,r:1.5,label:()=>'ชงกาแฟ (10 นาที · พลังงาน +8)',use:()=>{coffee();after();}});
+  interact.push({loc:'estate',x:11.4,z:-18.5,r:1.5,label:()=>'☕ มุมกาแฟ',use:()=>openPanel(()=>`<h2>☕ มุมกาแฟ</h2><p class="muted">ของฝากในกระเป๋า: ${S.inv.gifts||0} ชิ้น</p><button class="ac" data-a="drink"><div class="an">☕ ชงกาแฟดื่มเอง</div><div class="ae">⏱ 10 นาที · ⚡ +8</div></button><button class="ac" data-a="buygift" data-x="coffee"><div class="an">🎁 ซื้อกาแฟเย็นไปฝากใครสักคน</div><div class="ae">💰 −45 · ให้เพื่อนร่วมงานแล้วสนิทขึ้น</div></button>`)});
   // ---- lab ----
   building('ห้องแล็บน้ำมันหม้อแปลง',20,32,-27,-17,3.4,M(0xf2f4f6,{roughness:.8}),M(0x3f6d8a,{roughness:.6,metalness:.3}),{s:[[25,27]]},'#7a9cb0');
   sign('🧪 Oil Lab · ห้องแล็บน้ำมัน',26,4.4,-16.6,EG,{scale:3.6});
@@ -1194,41 +1183,16 @@ function animPerson(p,moving,running,dt,t,work){
   if(moving)p.phase+=dt*(running?13:8.5);
   const sw=moving?Math.sin(p.phase)*(running?.85:.6):0;
   p.legL.rotation.x+=(sw-p.legL.rotation.x)*.3;p.legR.rotation.x+=(-sw-p.legR.rotation.x)*.3;
-  if(work){p.armR.rotation.x=-1.2+Math.sin(t*14)*.5;p.armL.rotation.x=-.8;p.tool.visible=true;}
+  if(work==='type'){p.tool.visible=false;p.armR.rotation.x=-1.05+Math.sin(t*17)*.07;p.armL.rotation.x=-1.05+Math.cos(t*15)*.07;}
+  else if(work){p.armR.rotation.x=-1.2+Math.sin(t*14)*.5;p.armL.rotation.x=-.8;p.tool.visible=true;}
   else{p.tool.visible=false;p.armL.rotation.x+=(-sw*.8-p.armL.rotation.x)*.3;p.armR.rotation.x+=(sw*.8-p.armR.rotation.x)*.3;}
   p.body.position.y=moving?Math.abs(Math.sin(p.phase))*.05:Math.sin(t*2+p.g.id)*.008;
 }
 function dressFor(loc){const o=OUTFITS[S.outfit]||OUTFITS.work,w=S.outfit==='work';person.hat.visible=w&&loc==='estate';person.hair.visible=!person.hat.visible;person.vest.forEach(v=>v.visible=w);person.shirt.color.setHex(o.shirt);person.pants.color.setHex(o.pants);}
 
 /* ---------- NPC navigation ---------- */
-const TOOUT={office:[[0,-17],[0,-12.5]],boss:[[9,-24],[9,-20.5],[0,-17],[0,-12.5]],meet:[[-8.5,-24],[-8.5,-20.5],[0,-17],[0,-12.5]],lab:[[26,-19],[26,-14.5]],canteen:[[-26,-12]],lkb:[[-28,32],[-28,27.5]],clk:[[28,32],[28,27.5]],park:[[12,14]],out:[]};
+const TOOUT={office:[[0,-17],[0,-12.5]],boss:[[9,-24],[9,-20.5],[0,-17],[0,-12.5]],meet:[[-8.5,-24],[-8.5,-20.5],[0,-17],[0,-12.5]],lab:[[26,-19],[26,-14.5]],canteen:[[-26,-12]],lkb:[[-31.75,40.6],[-31.75,33],[-28,32],[-28,27.5]],clk:[[24.25,40.6],[24.25,33],[28,32],[28,27.5]],park:[[12,14]],out:[]};
 function route(from,to,spot){if(from===to)return [spot];return [...TOOUT[from],...[...TOOUT[to]].reverse(),spot];}
-function npcGoal(n){
-  const d=n.d,m=S.min;
-  if(m>=1020||S.phase==='ot')return {k:'gone',z:'park',x:12+NPCS.indexOf(d)*1.2,y:16};
-  if(m>=720&&m<780)return {k:'lunch',z:'canteen',x:d.lunch.x,y:d.lunch.y};
-  if(d.work2&&Math.floor(m/60)%2)return {k:'work2',z:d.work2.z,x:d.work2.x,y:d.work2.y};
-  return {k:'work',z:d.work.z,x:d.work.x,y:d.work.y};
-}
-function updateNPCs(dt,t){
-  const show=S.loc==='estate'&&S.day%7!==0&&S.phase!=='morning';
-  const jump=Math.abs(absMin()-W.lastNpcMin)>12;W.lastNpcMin=absMin();
-  W.npcs.forEach(n=>{
-    const G=npcGoal(n);
-    if(!show){n.p.g.visible=false;n.vis=false;return;}
-    if(G.k!==n.goal){n.goal=G.k;n.path=route(n.zone,G.z,[G.x,G.y]);n.zone=G.z;}
-    if(jump){n.x=G.x;n.z=G.y;n.path=[];}
-    let moving=false;
-    if(n.path.length){const [tx,tz]=n.path[0];const dx=tx-n.x,dz=tz-n.z,d=Math.hypot(dx,dz);
-      if(d<.15)n.path.shift();else{const sp=Math.min(d,2.3*dt);n.x+=dx/d*sp;n.z+=dz/d*sp;moving=true;let a=Math.atan2(dx,dz)-n.ry;a=Math.atan2(Math.sin(a),Math.cos(a));n.ry+=a*Math.min(1,dt*10);}}
-    else{const a0=Math.atan2(W.pl.x-n.x,W.pl.z-n.z);if(Math.hypot(W.pl.x-n.x,W.pl.z-n.z)<4){let a=a0-n.ry;a=Math.atan2(Math.sin(a),Math.cos(a));n.ry+=a*Math.min(1,dt*4);}}
-    const gone=G.k==='gone'&&!n.path.length;
-    n.vis=!gone;n.p.g.visible=!gone;
-    n.p.g.position.set(n.x,0,n.z);n.p.g.rotation.y=n.ry;
-    animPerson(n.p,moving,false,dt,t,false);
-  });
-}
-
 /* ---------- places ---------- */
 function place(where){
   const P={estate:[9,17.4,Math.PI,0],bed:[HX-5,-4.2,-Math.PI/2,Math.PI/2],homeDoor:[HX+5,4.6,Math.PI,0]}[where];
@@ -1255,7 +1219,9 @@ function drawMini(){
 
 /* ---------- input ---------- */
 const joy={x:0,y:0,id:null};let run=false;
-addEventListener('keydown',e=>{keys[e.code]=true;
+addEventListener('keydown',e=>{
+  if(e.target&&e.target.tagName==='INPUT'){if(e.key==='Enter'){const v=e.target.value;e.target.value='';if(e.target.id==='say')converse(e.target.dataset.to,v,'panel');if(e.target.id==='phin')converse(e.target.dataset.to,v,'phone');}return;}
+  keys[e.code]=true;
   if(e.code==='KeyE'&&!modalOpen&&!panelOpen&&!PH.open){if(W.driving)exitCar();else useNearest();}
   if(e.code==='KeyP'&&!modalOpen&&!W.traveling&&S.phase!=='sleep'){PH.open?phoneClose():phoneOpen();}
   if(e.code==='Escape'){if(PH.open)phoneClose();else if(panelOpen)closePanel();}
@@ -1291,7 +1257,7 @@ function frame(now){
   requestAnimationFrame(frame);
   const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
   const paused=modalOpen||panelOpen||PH.open||W.traveling||S.phase==='sleep'||S.over;
-  if(!paused){acc+=dt;while(acc>=1){acc-=1;advance(1);if(S.pending.length)processPending();checkTime();hud();}}
+  if(!paused){acc+=dt;const spm=S.tspeed||2.5;while(acc>=spm){acc-=spm;advance(1);if(S.pending.length)processPending();checkTime();hud();}}
   else acc=0;
   saveT+=dt;if(saveT>8){saveT=0;save();}
   let moving=false,running=false;
@@ -1349,6 +1315,7 @@ document.addEventListener('click',e=>{
   if(a==='status')return openPanel(statusPanel);
   if(a==='phone'){if(!W.traveling&&S.phase!=='sleep'&&!S.over)PH.open?phoneClose():phoneOpen();return;}
   if(a==='phclose')return phoneClose();
+  if(a==='tspeed'){const i=TSP.findIndex(t=>t[0]===(S.tspeed||2.5));S.tspeed=TSP[(i+1)%TSP.length][0];toast('⏱ ความเร็วเวลา: '+TSP[(i+1)%TSP.length][2],'');hud();save();return;}
   if(a==='ph'){PH.app=x;renderPhone();return;}
   if(a==='close')return closePanel();
   if(a==='reset'){enqueue({title:'↺ เริ่มเกมใหม่?',html:'<p>ความคืบหน้าทั้งหมดจะหายไป</p>',choices:[{label:'ยกเลิก',fn:()=>{}},{label:'เริ่มใหม่',cls:'pri',fn:()=>restart()}]});return;}
@@ -1378,6 +1345,17 @@ document.addEventListener('click',e=>{
     case 'cookstep':cookStep(+x);if(CK)refreshPanel();return;
     case 'cookstop':cookStop();return;
     case 'wear':wear(x);break;
+    case 'topic':{const [i,c]=x.split('|');startTopic(i,c);break;}
+    case 'tpick':{const [i,k]=x.split('|');pickTopic(i,+k);break;}
+    case 'say':{const el=$('#say');if(el){const v=el.value;el.value='';converse(x,v,'panel');}return;}
+    case 'phsend':{const el=$('#phin');if(el){const v=el.value;el.value='';converse(x,v,'phone');}return;}
+    case 'gift':giveGift(x);break;
+    case 'invite':inviteDate(x);break;
+    case 'confess':closePanel();confess(x);break;
+    case 'deleg':{const [i,t]=x.split('|');delegate(i,t);break;}
+    case 'buygift':buyGift(x);break;
+    case 'drink':coffee();closePanel();break;
+    case 'dategoo':goDate();return;
     case 'dest':if(x==='home'){S.shiftAsked=S.day;goHome();return;}closePanel();break;
   }
   after();
@@ -1396,6 +1374,7 @@ function msg(chat,from,text,replies){
 function checkMsgs(){
   const wd=S.day%7,m=S.min;
   if(S.phase==='morning'&&m>=425&&once('mom'))msg('mom','mom',pick(['ตื่นยังลูก อย่าลืมกินข้าวเช้านะ','วันนี้อากาศร้อน ดื่มน้ำเยอะๆ นะลูก','ทำงานเหนื่อยไหม แม่เป็นห่วงนะ']),[{t:'ตื่นแล้วครับแม่ ❤️',mood:4},{t:'👍',mood:1}]);
+  Object.keys(S.rel||{}).forEach(id=>{if(S.rel[id]==='partner'&&S.phase==='morning'&&m>=430&&once('pm'+id))msg(id,id,pick(['อรุณสวัสดิ์นะ ☀️ วันนี้สู้ๆ 💕','ตื่นยัง~ เจอกันที่ทำงานนะ 😊','ฝันดีไหมเมื่อคืน? คิดถึงนะ 💕']),[{t:'อรุณสวัสดิ์ 💕',love:2,mood:4},{t:'คิดถึงเหมือนกัน 🥰',love:3,mood:5}]);});
   if(S.phase==='work'&&m>=705&&m<760&&once('lunch'))msg('team','fon','เที่ยงนี้กินอะไรกันดี 🍜 โรงอาหารเหมือนเดิมไหม?',[{t:'ไปๆ เจอกันโรงอาหาร!',fr:{fon:3,tom:1}},{t:'ขอเคลียร์งานก่อนนะ',fr:{fon:-1}}]);
   if(wd===5&&S.phase==='work'&&m>=960&&once('party'))msg('team','james','ศุกร์นี้หมูกระทะปิดสัปดาห์นะคร้าบ 🍖 ใครไปบ้าง',[{t:'ไปแน่นอน! 🙋',fr:{james:3,fon:2}},{t:'ขอดูก่อนนะ',fr:{}}]);
   if(S.phase==='evening'&&m>=1230&&once('eve'))pick([
@@ -1406,7 +1385,7 @@ function checkMsgs(){
 function reply(chat,i,ri){
   const m=S.chats[chat][i];if(!m||!m.r)return;const r=m.r[ri];m.r=null;
   S.chats[chat].push({f:'me',x:r.t,t:fmt(S.min)});
-  if(r.mood)S.mood+=r.mood;if(r.rep)S.rep+=r.rep;if(r.fr)for(const k in r.fr)S.fr[k]+=r.fr[k];
+  if(r.mood)S.mood+=r.mood;if(r.rep)S.rep+=r.rep;if(r.fr)for(const k in r.fr)S.fr[k]+=r.fr[k];if(r.love&&ROMANCE[chat])gain(chat,'love',r.love);if(r.love&&chat==='team'&&0){}
   advance(1);
 }
 const CONTACTS=[
@@ -1464,7 +1443,9 @@ function renderPhone(){
   else if(a.startsWith('chat:')){const k=a.slice(5),c=S.chats[k];S.unread[k]=0;title=`${back('chats')} ${CHAT_META[k].n}`;
     let lastR=-1;c.forEach((m,i)=>{if(m.r)lastR=i;});
     h=`<div class="chatv">${c.length?c.map(m=>m.f==='me'?`<div class="bub me">${m.x}<small>${m.t} · อ่านแล้ว</small></div>`:`${k==='team'?`<div class="who">${NPC(m.f)?NPC(m.f).name:''}</div>`:''}<div class="bub">${m.x}<small>${m.t}</small></div>`).join(''):'<div style="text-align:center;color:#1b2a44;font-size:12px">ยังไม่มีข้อความ</div>'}</div>`;
-    if(lastR>=0)h+=`<div class="qr">${c[lastR].r.map((r,ri)=>`<button data-a="reply" data-x="${k}|${lastR}|${ri}">${r.t}</button>`).join('')}</div>`;}
+    if(lastR>=0)h+=`<div class="qr">${c[lastR].r.map((r,ri)=>`<button data-a="reply" data-x="${k}|${lastR}|${ri}">${r.t}</button>`).join('')}</div>`;
+    if(k!=='team')h+=`<div class="qr"><input id="phin" data-to="${k}" placeholder="พิมพ์ข้อความ…" style="flex:1;padding:8px 12px;border-radius:99px;border:0;font:inherit" ${W.talking?'disabled':''}><button data-a="phsend" data-x="${k}">ส่ง</button></div>`;
+}
   else if(a==='calls'){title=`${back('home')} โทรศัพท์`;h=CONTACTS.map(c=>`<button class="crow" data-a="ph" data-x="call:${c.id}"><span class="av">${c.av}</span><div><b>${c.n}</b><small>แตะเพื่อโทร</small></div><i style="background:#2f9e44">📞</i></button>`).join('');}
   else if(a.startsWith('call:')){const id=a.slice(5),C=CONTACTS.find(c=>c.id===id);title=`${back('calls')} กำลังสนทนา`;
     h=`<div class="phbody" style="text-align:center"><div style="font-size:56px;margin-top:10px">${C.av}</div><div style="font-size:18px;font-weight:600">${C.n}</div><div class="muted">📞 เชื่อมต่อแล้ว · เลือกเรื่องที่จะคุย</div><div style="margin-top:14px;text-align:left">${callActs(id).map(([x,l,dis])=>`<button class="ac" data-a="callact" data-x="${x}" ${dis?'disabled':''}>${l}</button>`).join('')}</div><button class="badb" style="width:100%;margin-top:8px" data-a="ph" data-x="calls">📵 วางสาย</button></div>`;}
@@ -1569,9 +1550,11 @@ function exitCar(){
 }
 function destPanel(){
   if(S.loc==='estate'){const can=!(S.phase==='work'&&S.min<990);
-    return `<h2>🚧 ประตูนิคมอุตสาหกรรม</h2>${can?`<p class="muted">ขับออกจากนิคมฯ</p><button class="ac" data-a="dest" data-x="home"><div class="an">🏠 ขับกลับบ้าน</div><div class="ae">⏱ 30 นาที${S.phase==='ot'?' · จบ OT':''}</div></button>`:'<div class="dlg">ยังไม่ถึงเวลาเลิกงาน (ออกได้ตั้งแต่ 16:30)</div>'}<button class="ac" data-a="dest" data-x="back"><div class="an">↩️ กลับรถเข้านิคมฯ</div></button>`;}
+    const dt=S.date&&S.date.day===S.day&&S.min<1260?`<button class="ac" data-a="dategoo"><div class="an">💕 ไปเดตกับ ${NPC(S.date.id).name}</div><div class="ae">ร้านอาหารริมน้ำ · ~3 ชม. · 💰 −400</div></button>`:'';
+    return `<h2>🚧 ประตูนิคมอุตสาหกรรม</h2>${can?`<p class="muted">ขับออกจากนิคมฯ</p>${dt}<button class="ac" data-a="dest" data-x="home"><div class="an">🏠 ขับกลับบ้าน</div><div class="ae">⏱ 30 นาที${S.phase==='ot'?' · จบ OT':''}</div></button>`:'<div class="dlg">ยังไม่ถึงเวลาเลิกงาน (ออกได้ตั้งแต่ 16:30)</div>'}<button class="ac" data-a="dest" data-x="back"><div class="an">↩️ กลับรถเข้านิคมฯ</div></button>`;}
   const ids=S.phase==='morning'?['gowork']:S.phase==='evening'?['eat','side','market']:S.phase==='holiday'?['eat','cafe','sea','side','market']:[];
-  return `<h2>🛣️ ถนนใหญ่</h2><p class="muted">จะขับไปไหนดี?</p>${ids.map(id=>{const a=ACTS[id];return `<button class="ac" data-a="act" data-x="${id}" ${a.money<0&&S.money+a.money<0?'disabled':''}><div class="an">${a.icon} ${a.name}</div><div class="ae">${actEff(a)}</div></button>`;}).join('')}<button class="ac" data-a="dest" data-x="back"><div class="an">↩️ กลับรถเข้าบ้าน</div></button>`;
+  const dt2=S.date&&S.date.day===S.day&&S.min<1260&&S.phase!=='morning'?`<button class="ac" data-a="dategoo"><div class="an">💕 ไปเดตกับ ${NPC(S.date.id).name}</div><div class="ae">ร้านอาหารริมน้ำ · ~3 ชม. · 💰 −400</div></button>`:'';
+  return `<h2>🛣️ ถนนใหญ่</h2><p class="muted">จะขับไปไหนดี?</p>${dt2}${ids.map(id=>{const a=ACTS[id];return `<button class="ac" data-a="act" data-x="${id}" ${a.money<0&&S.money+a.money<0?'disabled':''}><div class="an">${a.icon} ${a.name}</div><div class="ae">${actEff(a)}</div></button>`;}).join('')}<button class="ac" data-a="dest" data-x="back"><div class="an">↩️ กลับรถเข้าบ้าน</div></button>`;
 }
 function driveUpdate(dt,paused){
   const c=S.car;let thr=0,st=0;
@@ -1654,10 +1637,262 @@ function buildHomeExtra(){
   interact.push({loc:'*',get x(){return S.car.x;},get z(){return S.car.z;},r:2.9,ok:()=>S.car.loc===S.loc&&!W.driving,label:()=>'🚗 ขึ้นรถ ขับเอง',use:()=>enterCar()});
 }
 
+/* =====================================================================
+   NPC WORK (เพื่อนร่วมงานทำงานจริง)
+   ===================================================================== */
+let JOBUID=1;
+function txSpot(T){const v=W.tv[T.id];return {x:v.x+rnd(-.8,.8),y:40.5,z:T.ss==='LKB'?'lkb':'clk',face:Math.PI};}
+function newJob(n,force){
+  const id=n.d.id,r=Math.random(),live=S.tx.filter(t=>!t.trip),T=pick(live.length?live:S.tx);
+  const J=o=>Object.assign({uid:JOBUID++,anim:'tool'},o);
+  if(force)return J(force);
+  if(id==='james')return r<.75?J({kind:'inspect',t:T.id,label:`🔍 ตรวจพินิจ ${T.id}`,...txSpot(T),dur:40}):J({kind:'idle',label:'🧰 เตรียมเครื่องมือ',z:'lkb',x:-24.25,y:40.6,dur:30});
+  if(id==='fon')return r<.55?J({kind:'fmea',label:'💻 ทำ FMEA ในระบบ',z:'office',x:-4,y:-17.6,dur:80,anim:'type'}):J({kind:'ir',t:T.id,label:`📷 สแกน IR ${T.id}`,...txSpot(T),dur:30});
+  if(id==='tom')return r<.4?J({kind:'test',t:T.id,label:`⚡ ทดสอบทางไฟฟ้า ${T.id}`,...txSpot(T),dur:60}):J({kind:'review',label:'📑 ทบทวนแผน PM',z:'office',x:6,y:-17.6,dur:90,anim:'type'});
+  if(id==='noi'){const od=S.tx.filter(t=>!t.trip&&overdue(t)>0&&!S.tasks.some(k=>k.type==='sample'&&k.t===t.id&&!k.done)&&!S.lab.some(l=>l.res.t===t.id));
+    if(r<.35&&od.length){const t=od[0];return J({kind:'sample',t:t.id,label:`🧪 เก็บน้ำมัน ${t.id}`,...txSpot(t),dur:20});}
+    return J({kind:'lab',label:'🔬 วิเคราะห์ตัวอย่างด้วยเครื่อง GC',z:'lab',x:23.6,y:-25.3,dur:90,anim:'type'});}
+  if(id==='boss')return r<.25?J({kind:'tour',t:T.id,label:`👀 เดินตรวจ ${T.ss}`,...txSpot(T),dur:20,anim:false}):r<.5?J({kind:'meet',label:'📊 ประชุมผู้บริหาร',z:'meet',x:-9,y:-24.6,dur:60,anim:false}):J({kind:'desk',label:'📝 อนุมัติเอกสาร',z:'boss',x:9,y:-25.6,dur:90,anim:'type'});
+  return J({kind:'idle',label:'',z:n.d.work.z,x:n.d.work.x,y:n.d.work.y,dur:60});
+}
+function npcJobDone(n,j){
+  const nm=n.d.name,T=j.t?TX(j.t):null,f=T&&T.fault;
+  const found=(src,who)=>{if(!f||f.sev<=.15||!FIND[src][f.fm])return false;const txt=`${src==='visual'?'👀':src==='ir'?'📷':'⚡'} (${who}) ${FIND[src][f.fm]}`;if(T.find.includes(txt))return false;addFind(T,txt,UNIQUE[src].includes(f.fm)?f.fm:null);return FIND[src][f.fm];};
+  if(j.kind==='inspect'){const r=found('visual','น้องเจมส์');if(r)msg('team','james',`พี่ครับ ผมตรวจ ${T.id} เจอ: ${r} 📸`,[{t:'ขอบใจมาก เดี๋ยวไปดู',fr:{james:2}}]);else if(Math.random()<.25)msg('team','james',`ตรวจ ${T.id} ภายนอกปกติครับ ✅`);}
+  if(j.kind==='ir'){const r=found('ir','ฝน');if(r)msg('team','fon',`สแกน IR ${T.id} แล้วเจอ ${r} 🔥 ฝากดูด้วยนะ`,[{t:'เยี่ยมเลย ขอบใจนะ',fr:{fon:2}}]);}
+  if(j.kind==='test'){const r=found('test','พี่ต้อม');if(r)msg('team','tom',`ผลทดสอบ ${T.id}: ${r}`,[{t:'รับทราบครับพี่',fr:{tom:2}}]);}
+  if(j.kind==='fmea'){const t=j.del?TX(j.t):S.tx.find(x=>fmeaCount(x)<10&&!S.tasks.some(k=>k.type==='fmea'&&k.t===x.id&&!k.done));
+    if(t){const keys=Object.keys(t.fm).filter(k=>!t.fm[k].ok).slice(0,j.del?10:2);keys.forEach(k=>{const fm=t.fm[k];fm.ok=true;fm.pick=stratFor(FMS[k].S*fm.O*fm.D);});
+      if(j.del){markTask('fmea',t.id);msg('fon','fon',`ทำ FMEA ของ ${t.id} ครบ 10/10 แล้วนะ ✌️ ติดเลี้ยงชานมหนึ่งแก้ว 😆`,[{t:'ขอบใจมากกก ได้เลย 🧋',fr:{fon:3},love:2}]);}
+      else if(keys.length)msg('team','fon',`ช่วยทำ FMEA ${t.id} ไป ${keys.length} รายการนะ`);}}
+  if(j.kind==='sample'){n.job=newJob(n,{kind:'labdrop',t:j.t,del:j.del,label:`🧪 นำตัวอย่าง ${j.t} ส่งแล็บ`,z:'lab',x:24.5,y:-25.3,dur:10,anim:'type'});n.atJob=false;n.jobEnd=0;return true;}
+  if(j.kind==='labdrop'){const t=TX(j.t);t.age=0;S.lab.push({ready:absMin()+90,res:genDGA(t)});S.lab.sort((a,b)=>a.ready-b.ready);
+    if(j.del){markTask('sample',t.id);msg('james','james',`ส่งตัวอย่าง ${t.id} ให้พี่หน่อยแล้วครับ ✅`,[{t:'ขอบใจนะเจมส์ 🙏',fr:{james:2}}]);}else msg('team','noi',`พี่เก็บน้ำมัน ${t.id} ที่เลยกำหนดมาให้แล้ว ผลออกบ่ายนี้`);}
+  if(j.kind==='tour'&&T&&RORD[tRisk(T)]<=1)msg('boss','boss',`เพิ่งเดินดู ${T.id} มา ความเสี่ยง ${RISK[tRisk(T)].en} นะ ดูแลใกล้ชิดด้วย`,[{t:'รับทราบครับ',fr:{boss:1}}]);
+  return false;
+}
+function npcActivity(n){if(!n.vis)return 'กลับบ้านแล้ว';if(S.min>=720&&S.min<780)return '🍱 พักกินข้าวเที่ยง';if(n.job)return n.atJob?n.job.label:`🚶 กำลังไป: ${n.job.label}`;return {boss:'📝 ทำงานที่ห้อง',james:'🧰 ประจำลานไกไฟฟ้า',noi:'🔬 ทำงานในแล็บ'}[n.d.id]||'💻 ทำงานที่โต๊ะ';}
+function npcGoal(n){
+  const d=n.d,m=S.min;
+  if(m>=1020||S.phase==='ot')return {k:'gone',z:'park',x:12+NPCS.indexOf(d)*1.2,y:16};
+  if(m>=720&&m<780)return {k:'lunch',z:'canteen',x:d.lunch.x,y:d.lunch.y};
+  if(n.job)return {k:'job'+n.job.uid,z:n.job.z,x:n.job.x,y:n.job.y};
+  return {k:'work',z:d.work.z,x:d.work.x,y:d.work.y};
+}
+function updateNPCs(dt,t){
+  const show=S.loc==='estate'&&S.day%7!==0&&S.phase!=='morning';
+  const now=absMin(),jump=Math.abs(now-W.lastNpcMin)>12;W.lastNpcMin=now;
+  const workHrs=(S.phase==='work')&&S.min>=480&&S.min<1020&&!(S.min>=720&&S.min<780);
+  W.npcs.forEach(n=>{
+    if(!show){n.p.g.visible=false;n.vis=false;return;}
+    if(workHrs){
+      if(!n.job&&now>=(n.nextJob||0)){n.job=newJob(n);n.atJob=false;n.jobEnd=0;}
+      if(n.job&&n.atJob&&now>=n.jobEnd){const j=n.job;n.job=null;n.atJob=false;if(!npcJobDone(n,j))n.nextJob=now+ri(15,45);}
+    }
+    const G=npcGoal(n);
+    if(G.k!==n.goal){n.goal=G.k;n.path=route(n.zone,G.z,[G.x,G.y]);n.zone=G.z;}
+    if(jump){n.x=G.x;n.z=G.y;n.path=[];}
+    let moving=false;
+    if(n.path.length){const [tx,tz]=n.path[0];const dx=tx-n.x,dz=tz-n.z,d=Math.hypot(dx,dz);
+      if(d<.15)n.path.shift();else{const sp=Math.min(d,2.3*dt);n.x+=dx/d*sp;n.z+=dz/d*sp;moving=true;let a=Math.atan2(dx,dz)-n.ry;a=Math.atan2(Math.sin(a),Math.cos(a));n.ry+=a*Math.min(1,dt*10);}}
+    if(n.job&&G.k.startsWith('job')&&!n.path.length&&!n.atJob){n.atJob=true;n.jobEnd=now+n.job.dur;}
+    const near=Math.hypot(W.pl.x-n.x,W.pl.z-n.z)<3.2;
+    let face=null;if(!moving){if(near)face=Math.atan2(W.pl.x-n.x,W.pl.z-n.z);else if(n.atJob&&n.job&&n.job.face!==undefined)face=n.job.face;else if(G.k==='work'||(n.atJob&&n.job&&n.job.anim==='type'))face=Math.PI;}
+    if(face!==null){let a=face-n.ry;a=Math.atan2(Math.sin(a),Math.cos(a));n.ry+=a*Math.min(1,dt*4);}
+    const gone=G.k==='gone'&&!n.path.length;
+    n.vis=!gone;n.p.g.visible=!gone;n.p.g.position.set(n.x,0,n.z);n.p.g.rotation.y=n.ry;
+    let mode=false;if(!moving&&!near){if(n.atJob&&n.job)mode=n.job.anim;else if(G.k==='work'&&n.d.id!=='james')mode='type';}
+    animPerson(n.p,moving,false,dt,t,mode);
+    const act=npcActivity(n),rel=S.rel&&S.rel[n.d.id]==='partner'?' 💕':'';
+    if(n.lbKey!==act+rel){n.lbKey=act+rel;n.lb.userData.draw([{t:n.d.name+rel,s:46,b:1},{t:act.slice(0,26),s:30,c:'#9cc8ff'}]);}
+  });
+}
+
+/* =====================================================================
+   CONVERSATION · ROMANCE (คุยโต้ตอบ · จีบ)
+   ===================================================================== */
+const ROMANCE={fon:{age:26,bio:'วิศวกรบำรุงรักษารุ่นเดียวกับผู้เล่น ร่าเริง ขี้แซว ชอบส้มตำ ชานม ดูซีรีส์เกาหลี แอบชอบคนใจดี ตลก และตั้งใจทำงาน'},james:{age:25,bio:'ช่างเทคนิคภาคสนาม ขยัน อารมณ์ดี พูดตรง ชอบเตะบอล ขี่มอเตอร์ไซค์ ทำกับข้าวเก่ง แอบชอบคนที่ใส่ใจและไม่ถือตัว'}};
+const PERSONA={boss:'คุณวิชัย อายุ 55 ผู้จัดการฝ่ายบำรุงรักษา จริงจัง มีหลักการ แต่ใจดี เชื่อในแนวคิด RCM แต่งงานแล้ว มีลูก 2 คน พูดสุภาพแบบหัวหน้า',
+ tom:'พี่ต้อม อายุ 42 วิศวกรอาวุโส ผู้เชี่ยวชาญ DGA และการทดสอบหม้อแปลง ใจดี ชอบสอน ชอบเล่าเรื่องสมัยก่อน แต่งงานแล้ว มีลูกสาว',
+ noi:'พี่หน่อย อายุ 38 นักเคมีห้องแล็บน้ำมันหม้อแปลง ละเอียด พูดตรงแต่ใจดี ชอบปลูกต้นไม้ แต่งงานแล้ว',
+ fon:'ฝน อายุ 26 '+ROMANCE.fon.bio,james:'น้องเจมส์ อายุ 25 '+ROMANCE.james.bio,mom:'แม่ของผู้เล่น อยู่ต่างจังหวัด ห่วงใยลูก ชอบถามเรื่องกินข้าว สุขภาพ และแฟน'};
+const TALK={
+ fon:{chat:[
+   {q:'แกชอบกินอะไรที่สุดอ่ะ? ฉันชอบส้มตำปูปลาร้า 😋',o:[['ส้มตำเหมือนกัน! เผ็ดๆ',{fr:4,love:2},'จริงดิ! งั้นวันหลังไปกินด้วยกันนะ 🥰'],['ชอบพิซซ่ามากกว่า',{fr:1},'โห สายฝรั่งเลย 555'],['กินอะไรก็อร่อย ถ้ามีคนกินด้วย',{fr:2,love:3},'อุ๊ย… พูดซะเขินเลย 😳']]},
+   {q:'ช่วงนี้ดูซีรีส์อะไรอยู่? ฉันติดเรื่องใหม่มาก ดูจนตีสอง 😴',o:[['เล่าให้ฟังหน่อย อยากดูบ้าง',{fr:4,love:1},'ได้เลย! เดี๋ยวส่งลิงก์ให้ทางแชทนะ ✨'],['นอนน้อยระวังป่วยนะ',{fr:2,love:2},'แหม ห่วงด้วย 🙈 ขอบใจนะ'],['ไม่ค่อยดูซีรีส์อ่ะ',{fr:0},'งั้นแกทำอะไรตอนว่างอ่ะ?']]},
+   {q:'วันหยุดนี้แกจะไปไหนเปล่า?',o:[['ว่าจะไปทะเล ไปด้วยกันไหม',{fr:2,love:3},'ห๊ะ! ชวนจริงเหรอ… ขอคิดดูนะ 😊'],['นอนอยู่บ้านยาวๆ',{fr:2},'สายนอนเหมือนกันเลย 555'],['ทำงานเสริมหาเงิน',{fr:1},'ขยันจัง อย่าลืมพักบ้างนะ']]}],
+  work:[
+   {q:'เมื่อวานฉันทำ FMEA ผิดไปสองข้อ บอสดุเลย 😢',o:[['ไม่เป็นไร เดี๋ยวช่วยดูให้',{fr:4,love:2},'ขอบใจนะ แกใจดีจัง 💛'],['RPN ต้องคูณ S×O×D นะ',{fr:2},'อ๋อ… จริงด้วย ลืมไปเลย'],['ก็ระวังหน่อยสิ',{fr:-3},'…รู้แล้วน่า 😒']]},
+   {q:'แกว่า LKB-TR1 ควรเปลี่ยนใหม่เลยไหม HI ต่ำมากแล้ว',o:[['ดู Risk matrix ก่อน แล้วเสนอบอส',{fr:3},'เห็นด้วย ใช้ข้อมูลคุยกับบอสดีกว่า 👍'],['ซ่อมไปก่อน ประหยัดงบ',{fr:1},'ก็จริง แต่ถ้าทริปขึ้นมาจะแย่นะ'],['ไม่รู้สิ ไม่ใช่งานเรา',{fr:-2},'อ้าว… งานทีมเราชัดๆ 😅']]}],
+  flirt:[
+   {q:'(ฝนเหลือบมองแล้วยิ้ม) วันนี้ดูดีนะเนี่ย',o:[['ตั้งใจแต่งมาให้เธอดูไง 😉',{love:5},'บ้า! 😳 (หน้าแดง)'],['เธอก็น่ารักทุกวันแหละ',{love:4,fr:1},'หยุดเลยนะ… แต่ก็ชอบอ่ะ 🙈'],['ชุดเดิมเมื่อวานนะ 555',{fr:2},'555 ตลกละ']]},
+   {q:'ถ้าวันหนึ่งฉันย้ายไปทำที่อื่น แกจะคิดถึงไหม?',o:[['คิดถึงมากแน่นอน อย่าไปเลยนะ',{love:6},'…อืม งั้นไม่ไปก็ได้ 😊'],['คิดถึงสิ เพื่อนกันนี่',{fr:3,love:1},'อ๋อ… เพื่อนเนอะ 😅'],['ก็ไปตามฝันสิ',{fr:1},'อืม… ก็จริงแหละ']]}]},
+ james:{chat:[
+   {q:'พี่ชอบดูบอลไหมครับ เมื่อคืนทีมผมชนะ 3-0 เลย ⚽',o:[['ชอบ! เตะด้วยกันบ้างสิ',{fr:4,love:2},'ได้เลยพี่ เย็นวันศุกร์มีเตะกับทีมโรงงาน B ครับ'],['ไม่ค่อยดูอ่ะ',{fr:0},'ไม่เป็นไรครับ เดี๋ยวผมสอนกติกาให้ 555'],['ดีใจด้วยนะ!',{fr:2,love:1},'ขอบคุณครับพี่ 😁']]},
+   {q:'ผมเพิ่งหัดทำแกงเขียวหวาน อร่อยมาก วันหลังเอามาฝากพี่นะ',o:[['รอกินเลย! ฝีมือดีขนาดนี้',{fr:3,love:3},'เขินเลยพี่ 😳 พรุ่งนี้เอามาให้ครับ'],['ทำเป็นด้วยเหรอ เก่งจัง',{fr:3,love:1},'ฝึกจากยูทูบครับ 555'],['ไม่ต้องหรอก เกรงใจ',{fr:1},'โอเคครับ']]}],
+  work:[
+   {q:'พี่ครับ ทำไมต้องเก็บน้ำมันไม่ให้มีฟองอากาศครับ?',o:[['เพราะก๊าซจะหนีออก ค่า H₂ จะเพี้ยน',{fr:4},'อ๋อ! เข้าใจแล้วครับ ขอบคุณพี่ 🙏'],['ไม่รู้เหมือนกัน ถามพี่หน่อยดู',{fr:1},'โอเคครับ'],['ทำตามคู่มือไปเถอะ',{fr:-1},'…ครับ']]},
+   {q:'พัดลมรังผึ้งที่ CLK เสียบ่อยมาก ผมว่าควรเปลี่ยนรุ่นใหม่',o:[['เขียนข้อเสนอมา เดี๋ยวช่วยดันกับบอส',{fr:5,love:1},'จริงเหรอพี่! ขอบคุณมากครับ 🔥'],['งบไม่มีหรอก',{fr:-1},'ครับ… เข้าใจครับ'],['ลองเก็บสถิติ MTBF ก่อนนะ',{fr:3},'ได้ครับ จะจดทุกครั้งที่เสีย']]}],
+  flirt:[
+   {q:'(เจมส์เกาหัวเขินๆ) พี่ยิ้มทีไรผมทำงานไม่ถูกเลยครับ',o:[['งั้นยิ้มให้ทั้งวันเลย 😊',{love:6},'พี่อ่ะ! 😳 ทำงานไม่ได้แล้วเนี่ย'],['พูดเป็นเล่นน่า',{love:2,fr:1},'ผมพูดจริงนะครับ…'],['ตั้งใจทำงานก่อนนะ',{fr:2},'ครับผม! 🫡']]},
+   {q:'ถ้าพี่ไม่ติดอะไร เย็นนี้ผมขอเลี้ยงข้าวได้ไหมครับ',o:[['ได้สิ ไปกัน!',{love:6,fr:2},'เย้! เดี๋ยวผมจองร้านเลยครับ 😁'],['ไว้วันหลังนะ',{love:-1},'ครับ… ไว้วันหลังครับ'],['ไปทั้งทีมเลยไหม',{fr:2},'อ่า… ก็ได้ครับ 555']]}]},
+ tom:{chat:[
+   {q:'ลูกสาวพี่เพิ่งสอบติดวิศวะไฟฟ้า ดีใจมากเลย',o:[['ยินดีด้วยครับพี่! สืบทอดเลย',{fr:5},'555 ใช่ๆ จะได้มาช่วยวิเคราะห์ DGA'],['เก่งเหมือนพ่อเลย',{fr:4},'ขอบใจนะ ชมแบบนี้พี่ยิ้มทั้งวัน'],['ทำไมไม่ให้เรียนหมอ',{fr:-1},'เขาชอบไฟฟ้าน่ะ ให้เลือกเองดีกว่า']]}],
+  work:[
+   {q:'รู้ไหม สามเหลี่ยม Duval ใช้ก๊าซสามตัวไหน?',o:[['CH₄ C₂H₄ C₂H₂',{fr:5},'เก่งมาก! ถูกต้อง 👏'],['H₂ CO CO₂',{fr:0},'ยังไม่ใช่ ลองทบทวนดูนะ CH₄ C₂H₄ C₂H₂'],['ไม่รู้ครับพี่',{fr:1},'ไม่เป็นไร พุธนี้มาอบรมนะ']]},
+   {q:'สมัยพี่เป็นน้องใหม่ หม้อแปลงระเบิดตอนตีสอง ไปยืนดูไฟไหม้ทั้งคืน',o:[['น่ากลัวมาก ได้บทเรียนอะไรครับ',{fr:5},'บทเรียนคือ DGA เตือนมาก่อนแล้ว แต่ไม่มีใครดู… ข้อมูลสำคัญมาก'],['โหดมาก',{fr:2},'ใช่ๆ ไม่อยากให้เกิดอีก'],['สมัยนี้ไม่มีแล้วมั้ง',{fr:0},'มีได้เสมอ ถ้าเราประมาท']]}]},
+ noi:{chat:[
+   {q:'พี่ปลูกกะเพราไว้หลังแล็บ เอาไปทำกะเพราไหม?',o:[['เอาครับ/ค่ะ ขอบคุณมาก!',{fr:5},'เอาไปเลย ปลอดสารนะ 🌿'],['พี่ปลูกเก่งจัง',{fr:3},'ขอบใจจ้า'],['ไม่ค่อยทำกับข้าว',{fr:0},'ลองหัดดูสิ ประหยัดดี']]}],
+  work:[
+   {q:'ใครเก็บขวดน้ำมันมีฟองอากาศมาอีกแล้วเนี่ย 😤',o:[['ขอโทษครับ/ค่ะ จะระวังนะ',{fr:3},'ไม่เป็นไร ครั้งหน้าเติมให้เต็มขวดนะ'],['ไม่ใช่ผมนะ!',{fr:0},'จ้าๆ งั้นใครล่ะ 🤨'],['ฟองอากาศมีผลยังไงครับ',{fr:4},'ก๊าซ H₂ จะหนีออก ค่าที่วัดได้จะต่ำกว่าจริงไง']]}]},
+ boss:{chat:[
+   {q:'ทำงานมาสักพักแล้ว เป็นยังไงบ้าง ปรับตัวได้ไหม?',o:[['สนุกมากครับ ได้เรียนรู้เยอะ',{fr:4},'ดีมาก ทัศนคติแบบนี้แหละที่ผมอยากเห็น'],['เหนื่อยหน่อยครับ',{fr:2},'พักผ่อนให้พอ งานนี้วิ่งยาว'],['อยากได้เงินเดือนขึ้นครับ',{fr:-1},'ผลงานจะบอกเองนะ']]}],
+  work:[
+   {q:'ถ้างบมีจำกัด คุณจะเลือกเปลี่ยนหม้อแปลงลูกไหนก่อน?',o:[['ลูกที่ความเสี่ยงสูงสุดตาม Risk matrix',{fr:5},'ถูกต้อง ตัดสินใจด้วยข้อมูล นั่นคือ RCM'],['ลูกที่อายุมากที่สุด',{fr:1},'อายุเป็นแค่ปัจจัยหนึ่ง ดู HI และอัตราการลดด้วย'],['ลูกที่เสียบ่อย',{fr:2},'ใกล้แล้ว แต่ต้องดูผลกระทบด้วย']]}]}
+};
+const FLIRT_RE=/รัก|ชอบ|น่ารัก|สวย|หล่อ|แฟน|คิดถึง|เดท|เดต|ใจ|💕|❤|😘|จีบ/;
+function relTxt(id){const r=(S.rel||{})[id];return r==='partner'?'💑 แฟน':r==='dating'?'💗 คนคุย':'เพื่อนร่วมงาน';}
+function gain(id,kind,v){
+  if(!v)return 0;if(kind==='love'&&!ROMANCE[id])return 0;
+  if(!S.gain||S.gain.d!==S.day)S.gain={d:S.day,fr:{},love:{}};
+  const used=S.gain[kind][id]||0;let g=v;if(v>0){g=Math.max(0,Math.min(v,(kind==='love'?12:12)-used));S.gain[kind][id]=used+g;}
+  if(kind==='fr')S.fr[id]=(S.fr[id]||0)+g;else S.love[id]=clamp((S.love[id]||0)+g,0,100);
+  if(kind==='love'&&S.rel[id]!=='partner'&&S.love[id]>=30&&S.rel[id]!=='dating'){S.rel[id]='dating';toast(`💗 ความสัมพันธ์กับ ${NPC(id).name} พัฒนาเป็น "คนคุย" แล้ว`,'ok');}
+  return g;
+}
+function convPush(id,w,t){S.conv[id]=S.conv[id]||[];S.conv[id].push({w,t});if(S.conv[id].length>14)S.conv[id].shift();}
+function startTopic(id,cat){
+  const bank=(TALK[id]||{})[cat];if(!bank||!bank.length)return;
+  S.tUsed=S.tUsed||{};const key=id+cat;const used=S.tUsed[key]||[];let idx=bank.findIndex((x,i)=>!used.includes(i));if(idx<0){S.tUsed[key]=[];idx=ri(0,bank.length-1);}
+  (S.tUsed[key]=S.tUsed[key]||[]).push(idx);
+  const T=bank[idx];convPush(id,'npc',T.q);S.topic[id]={o:T.o};advance(2);
+}
+function pickTopic(id,i){
+  const tp=S.topic[id];if(!tp)return;const [txt,eff,rep]=tp.o[i];S.topic[id]=null;
+  convPush(id,'me',txt);convPush(id,'npc',rep);advance(2);
+  const f=gain(id,'fr',eff.fr||0)*(S.clean<30&&eff.fr>0?.5:1),l=gain(id,'love',eff.love||0);
+  if(S.clean<30&&Math.random()<.4)convPush(id,'npc','(แอบขยับหนีนิดนึง… กลิ่นตัวนะ 😷)');
+  showGain(id,eff.fr||0,l);
+}
+function showGain(id,f,l){const p=[];if(f)p.push(`🤝 ${f>0?'+':''}${f}`);if(l)p.push(`💕 ${l>0?'+':''}${l}`);if(p.length)toast(`${NPC(id)?NPC(id).name:''} ${p.join(' ')}`,f<0||l<0?'warn':'ok');}
+// ---- AI / fallback ----
+let AI=null;(function(){try{if(window.claude&&window.claude.use)window.claude.use('sample').then(s=>{AI=s;}).catch(()=>{});}catch(e){}})();
+function aiPrompt(id,text){
+  const n=NPC(id),name=n?n.name:'แม่',rom=ROMANCE[id],np=W.npcs.find(x=>x.d.id===id);
+  const hist=(S.conv[id]||[]).slice(-10).map(c=>(c.w==='me'?'ผู้เล่น':name)+': '+c.t).join('\n');
+  const risky=S.tx.filter(t=>RORD[tRisk(t)]<=1||t.trip).map(t=>`${t.id}${t.trip?'(ทริป)':''}`).join(', ')||'ไม่มี';
+  return `คุณสวมบทเป็น "${name}" — ${PERSONA[id]} ในเกมจำลองชีวิตวิศวกรบำรุงรักษาหม้อแปลง นิคมอุตสาหกรรมลาดกระบัง ประเทศไทย
+กติกา: ตอบภาษาไทยแบบคนคุยกันจริง ตามบุคลิก สั้น 1–2 ประโยค ใช้อีโมจิได้นิดหน่อย อยู่ในบทบาทเสมอ ห้ามบอกว่าเป็น AI เนื้อหาต้องสุภาพเหมาะทุกวัย ถ้าผู้เล่นพูดหยาบหรือไม่เหมาะสม ให้ตอบเลี่ยงอย่างสุภาพและให้ fr ติดลบ
+${rom?`ตัวละครนี้จีบได้ (อายุ ${rom.age}) ตอบสนองการจีบตามระดับความรู้สึก: ต่ำ=เขินหรือเฉยๆ กลาง=ยิ้มแซวกลับ สูง=หวานขึ้น ความสัมพันธ์ไปได้แค่ระดับเดตจับมือ`:`ตัวละครนี้ไม่ใช่ตัวละครจีบ${id==='mom'?'':' (แต่งงานแล้ว)'} ถ้าผู้เล่นจีบให้ปฏิเสธขำๆ อย่างสุภาพ`}
+สถานการณ์: วัน${DAYS[S.day%7]} ${fmt(S.min)} · ${id==='mom'?'คุยทางโทรศัพท์/แชท':'ตอนนี้ '+name+(np?' '+npcActivity(np):'')} · ผู้เล่นเป็น${LEVELS[S.level].name} · ความสนิท ${Math.round(S.fr[id]||50)}/100${rom?` · ความรู้สึกพิเศษ ${Math.round(S.love[id]||0)}/100 · สถานะ ${relTxt(id)}`:''} · หม้อแปลงที่น่าห่วง: ${risky}
+บทสนทนาล่าสุด:
+${hist||'(เพิ่งเริ่มคุย)'}
+ผู้เล่นพูดว่า: "${text.slice(0,300)}"
+ตอบเป็น JSON อย่างเดียว: {"reply":"คำพูดของ${name}","fr":จำนวนเต็ม -3..3,"love":จำนวนเต็ม -3..3 (ถ้าไม่ใช่ตัวละครจีบให้เป็น 0)}`;
+}
+function fallbackReply(id,text){
+  const t=text.toLowerCase(),rom=ROMANCE[id],love=S.love[id]||0;
+  if(FLIRT_RE.test(text)){if(!rom)return {reply:id==='mom'?'แม่ก็รักลูกนะ ❤️ ดูแลตัวเองด้วย':pick(['555 พี่มีครอบครัวแล้วนะ อย่าแซวสิ','ขำๆ น่า ไปทำงานต่อดีกว่า 😅']),fr:id==='mom'?2:0};
+    return love>=50?{reply:pick(['พูดแบบนี้เขินนะ… แต่ชอบ 💕','ฉัน… ก็รู้สึกเหมือนกันแหละ 😳']),fr:1,love:3}:love>=20?{reply:pick(['แซวอีกแล้ว 🙈','บ้า! พูดอะไรของแก 😆']),fr:1,love:2}:{reply:pick(['ห๊ะ? 😅 พูดเล่นใช่มะ','อ่า… ทำงานต่อเถอะ 555']),fr:0,love:1};}
+  if(/หวัดดี|สวัสดี|ดีจ้า|hello|hi/.test(t))return {reply:pick(['สวัสดี! วันนี้เป็นไงบ้าง 😊','หวัดดีจ้า มีอะไรให้ช่วยไหม','ดีๆ กินข้าวยัง?']),fr:1};
+  if(/หม้อแปลง|dga|ก๊าซ|ซ่อม|งาน|fmea|risk|น้ำมัน|ทริป/i.test(text))return {reply:pick(LINES[id]||['เรื่องงานเดี๋ยวช่วยกันนะ']),fr:1};
+  if(/กิน|ข้าว|หิว|อร่อย|ร้าน/.test(text))return {reply:pick(['หิวเหมือนกัน เที่ยงนี้ไปโรงอาหารกัน 🍜','ร้านส้มตำหน้านิคมอร่อยนะ ลองยัง?','กินข้าวด้วยนะ อย่าทำงานจนลืม']),fr:2};
+  if(/เหนื่อย|ง่วง|เครียด|ท้อ/.test(text))return {reply:pick(['สู้ๆ นะ พักบ้างก็ได้ 💪','ไปกินกาแฟกันไหม จะได้สดชื่น ☕','เหนื่อยก็บอกนะ ช่วยกันได้']),fr:2,love:1};
+  if(/ขอบคุณ|ขอบใจ|thank/.test(t))return {reply:pick(['ยินดีจ้า 😊','ไม่เป็นไรเลย','เรื่องเล็กน้อย!']),fr:2};
+  return {reply:pick(['อืมๆ จริงด้วย','555 ใช่ๆ','แล้วไงต่อ เล่าอีกสิ','อ๋อ… เข้าใจละ','ฮ่าๆ แกนี่ตลกดี']),fr:1};
+}
+async function converse(id,text,via){
+  text=(text||'').trim();if(!text||W.talking)return;W.talking=true;
+  convPush(id,'me',text);if(via==='phone')S.chats[id].push({f:'me',x:text,t:fmt(S.min)});
+  advance(2);convPush(id,'npc','…');refreshPanel();renderPhone();
+  let res=null;
+  if(AI){try{const out=await AI(aiPrompt(id,text),{modelTier:'quick',cache:false});const m=(out.text||'').match(/\{[\s\S]*\}/);if(m){const j=JSON.parse(m[0]);if(j&&typeof j.reply==='string')res={reply:j.reply.slice(0,300),fr:clamp(Math.round(+j.fr||0),-3,3),love:clamp(Math.round(+j.love||0),-3,3)};}}
+    catch(e){if(e&&(e.code==='not_granted'))AI=null;}}
+  if(!res)res=fallbackReply(id,text);
+  S.conv[id].pop();convPush(id,'npc',res.reply);
+  if(via==='phone')S.chats[id].push({f:id,x:res.reply,t:fmt(S.min)});
+  const f=gain(id,'fr',res.fr||0),l=gain(id,'love',res.love||0);showGain(id,res.fr>0?f:res.fr,l);
+  W.talking=false;norm();save();refreshPanel();renderPhone();hud();
+}
+// ---- gifts / dates / confession ----
+function buyGift(kind){const g={coffee:['☕ กาแฟเย็น',45],snack:['🍰 ขนมเค้ก',35]}[kind];if(S.money<g[1]){toast('เงินไม่พอ','warn');return;}S.money-=g[1];S.inv.gifts=(S.inv.gifts||0)+1;advance(3);toast(`${g[0]} ซื้อไว้เป็นของฝากแล้ว (มี ${S.inv.gifts} ชิ้น)`,'ok');}
+function giveGift(id){if(!(S.inv.gifts>0))return;if(S.gave&&S.gave[id]===S.day){toast('วันนี้ให้ของไปแล้ว','');return;}S.gave=S.gave||{};S.gave[id]=S.day;S.inv.gifts--;advance(2);
+  const f=gain(id,'fr',5),l=gain(id,'love',ROMANCE[id]?5:0);convPush(id,'me','(ยื่นของฝากให้) อันนี้ซื้อมาฝากนะ');convPush(id,'npc',ROMANCE[id]?pick(['ให้ฉันเหรอ! น่ารักจัง ขอบใจนะ 🥰','จำได้ด้วยว่าชอบ… ขอบคุณนะ 💕']):pick(['โอ้ ขอบใจมากเลย 😊','เกรงใจจัง ขอบคุณนะ']));showGain(id,f,l);}
+function inviteDate(id){
+  if(S.date&&S.date.day===S.day){toast('วันนี้มีนัดแล้ว','');return;}
+  advance(2);const p=S.rel[id]==='partner'?1:clamp((S.love[id]||0)/50,.1,.95);
+  if(Math.random()<p){S.date={id,day:S.day};convPush(id,'me','เย็นนี้ไปกินข้าวด้วยกันไหม?');convPush(id,'npc',pick(['ได้สิ! เจอกันหลังเลิกงานนะ 😊','ไปๆ ฉันรู้ร้านอร่อย 💕']));toast(`💕 ${NPC(id).name} ตอบตกลง! ไปเดตได้ตอนขับรถออกจากนิคมฯ หลังเลิกงาน หรือที่ถนนใหญ่หน้าบ้านตอนเย็น`,'ok');}
+  else{convPush(id,'me','เย็นนี้ไปกินข้าวด้วยกันไหม?');convPush(id,'npc',pick(['วันนี้ไม่สะดวกอ่ะ ไว้วันหลังนะ 😅','ขอโทษที วันนี้มีนัดแล้ว']));toast('ยังไม่สำเร็จ ลองเพิ่มความสนิทก่อนนะ','');}
+}
+const DATE_Q=[
+ {q:'(ร้านอาหารริมน้ำ ไฟประดับสวยงาม) แกสั่งอะไรดี?',o:[['สั่งของที่เธอชอบมาแบ่งกัน',{love:4},'น่ารักอ่ะ จำได้ด้วย 🥰'],['ขอเมนูแพงสุดในร้าน!',{love:0},'555 เดี๋ยวกระเป๋าแตกนะ'],['อะไรก็ได้ ไม่หิวเท่าไหร่',{love:-1},'อ้าว… งั้นกินน้ำไปละกัน 😅']]},
+ {q:'ทำงานด้วยกันมาสักพัก… แกคิดยังไงกับฉันเหรอ?',o:[['เธอคือคนที่ทำให้อยากมาทำงานทุกวัน',{love:6},'…(ยิ้มกว้าง หน้าแดง) จริงเหรอ 😳'],['เพื่อนร่วมงานที่ดีที่สุด',{love:1},'เพื่อนร่วมงานเนอะ… อืม 😅'],['ขอคิดก่อนนะ',{love:0},'ไม่ต้องรีบหรอก 😊']]},
+ {q:'(เดินเล่นริมน้ำหลังกินข้าว ลมพัดเย็นๆ)',o:[['ชวนนั่งดูไฟริมน้ำด้วยกัน',{love:5},'บรรยากาศดีมากเลยเนอะ… 💕'],['ถ่ายรูปคู่กันไว้เป็นที่ระลึก',{love:4},'เอาๆ! ยิ้มหน่อย 📸'],['ขอตัวกลับก่อน พรุ่งนี้งานเช้า',{love:-2},'อ่า… โอเค ขับรถดีๆ นะ']]}
+];
+function goDate(){
+  const D=S.date;if(!D)return;const n=NPC(D.id);closePanel();
+  if(S.loc==='estate')endShift();
+  travel('home',30,`💕 ไปเดตกับ ${n.name} ที่ร้านอาหารริมน้ำ…`,()=>{S.phase='evening';place('homeStreet');dateRound(0,D.id,0);});
+}
+function dateRound(i,id,tot){
+  if(i>=DATE_Q.length){advance(150);S.money-=400;S.mood+=12;S.energy-=5;const l=gain(id,'love',6+Math.max(0,tot));gain(id,'fr',3);S.date=null;S.dates=(S.dates||0)+1;
+    log(`💕 เดตกับ ${NPC(id).name} สนุกมาก (ความรู้สึก +${l})`,'ok');
+    const canConf=S.rel[id]!=='partner'&&S.love[id]>=55&&S.fr[id]>=45;
+    enqueue({title:'💕 จบเดต',html:`<p>${NPC(id).name}: "วันนี้มีความสุขมากเลย ขอบคุณนะ 😊"</p><p class="muted">ความรู้สึกพิเศษ ${Math.round(S.love[id])}/100 · ใช้เงิน 400 ฿</p>${canConf?'<p>💌 บรรยากาศดีมาก… จะสารภาพความรู้สึกเลยไหม?</p>':''}`,
+      choices:canConf?[{label:'ไว้ก่อน',fn:()=>{}},{label:'💌 สารภาพรัก',cls:'pri',fn:()=>confess(id)}]:[{label:'กลับบ้าน',cls:'pri',fn:()=>{}}]});return;}
+  const q=DATE_Q[i];
+  enqueue({title:`💕 เดตกับ ${NPC(id).name}`,html:`<div class="dlg">${q.q}</div>`,choices:q.o.map(([t,eff,r])=>({label:t,fn:()=>{tot+=eff.love||0;setTimeout(()=>enqueue({title:`💕 ${NPC(id).name}`,html:`<div class="dlg">"${r}"</div>`,choices:[{label:'ต่อ ›',cls:'pri',fn:()=>dateRound(i+1,id,tot)}]}),0);}}))});
+}
+function confess(id){
+  const L=S.love[id]||0,F=S.fr[id]||0,ok=L>=70||(L>=55&&F>=50&&Math.random()<.55);
+  if(ok){S.rel[id]='partner';S.mood+=20;log(`💑 ${NPC(id).name} ตอบรับ! ตอนนี้เป็นแฟนกันแล้ว`,'ok');
+    enqueue({title:'💑 สารภาพรักสำเร็จ!',html:`<p>${NPC(id).name}: "จริงๆ ฉันก็ชอบแกมานานแล้วเหมือนกัน… เป็นแฟนกันนะ 💕"</p><p class="muted">แฟนจะส่งข้อความหาทุกเช้า เดตได้ทุกครั้งที่ชวน และกินข้าวด้วยกันได้ความสุขเพิ่ม</p>`,choices:[{label:'💕',cls:'pri',fn:()=>{}}]});
+    msg('team','tom','เห็นนะว่าช่วงนี้มีคนแอบยิ้มคนเดียว 😏 ยินดีด้วยนะ',[{t:'พี่ต้อมรู้ได้ไง 😳',fr:{tom:2},mood:3}]);}
+  else{gain(id,'love',-12);S.love[id]=clamp(S.love[id]-12,0,100);S.mood-=8;log(`💔 ${NPC(id).name} ขอเป็นเพื่อนกันก่อน`,'warn');
+    enqueue({title:'💔 ยังไม่ใช่ตอนนี้',html:`<p>${NPC(id).name}: "ขอบคุณที่บอกนะ… แต่ขอเวลาอีกหน่อย เป็นเพื่อนกันก่อนได้ไหม"</p><p class="muted">สร้างความสัมพันธ์ต่ออีกนิด แล้วค่อยลองใหม่</p>`,choices:[{label:'เข้าใจ',cls:'pri',fn:()=>{}}]});}
+}
+function delegate(id,tid){
+  const n=W.npcs.find(x=>x.d.id===id);if(!n)return;S.help['del_'+id]=S.day;
+  if(id==='james'){const T=TX(tid);n.job=newJob(n,{kind:'sample',t:tid,del:true,label:`🧪 เก็บน้ำมัน ${tid} (งานที่ฝาก)`,...txSpot(T),dur:20});}
+  if(id==='fon')n.job=newJob(n,{kind:'fmea',t:tid,del:true,label:`💻 ทำ FMEA ${tid} (งานที่ฝาก)`,z:'office',x:-4,y:-17.6,dur:90,anim:'type'});
+  n.atJob=false;n.jobEnd=0;advance(3);convPush(id,'me',id==='james'?`ฝากเก็บน้ำมัน ${tid} ส่งแล็บหน่อยนะ`:`ฝากช่วยทำ FMEA ของ ${tid} หน่อยนะ`);
+  convPush(id,'npc',id==='james'?'ได้ครับพี่ จัดให้เลย 🫡':'ได้เลย แต่ติดชานมนะ 😆');toast(`🙏 ${NPC(id).name} รับงานแล้ว — ดูสถานะได้จากป้ายเหนือหัว`,'ok');
+}
+function npcPanel(id){
+  return ()=>{
+    const n=NPC(id),np=W.npcs.find(x=>x.d.id===id),w=isWork(),rom=ROMANCE[id],fr=S.fr[id]||0,love=S.love[id]||0;
+    const conv=(S.conv[id]||[]).map(c=>`<div class="bub ${c.w==='me'?'me':''}">${c.t}</div>`).join('');
+    const tp=S.topic[id];
+    const sp={tom:['🧠 ขอคำแนะนำเรื่อง DGA','≥ 20'],noi:['⚡ ขอผลแล็บด่วน','≥ 30'],james:['🔧 ขอให้ช่วยงานซ่อมวันนี้','≥ 25'],fon:['📊 ขอให้ช่วยดู FMEA (แสดง RPN)','≥ 30']}[id];
+    let extra='';
+    if(id==='boss'){const nx=LEVELS[S.level+1];extra=`<h3>📋 งานที่มอบหมายวันนี้</h3>${S.tasks.map(k=>`<div class="tk ${k.done?'done':''}">${k.done?'☑':'☐'} ${taskText(k)}</div>`).join('')}
+      <div class="btns" style="margin-top:8px"><button class="pri" data-a="breport" ${S.inv.report&&w?'':'disabled'}>📄 ส่งรายงานประจำวัน</button>${nx?`<button data-a="promo" ${w?'':'disabled'}>🎖️ ขอประเมินเลื่อนเป็น ${nx.name}</button>`:''}</div>
+      ${nx?`<p class="muted">เงื่อนไข: XP ${S.xp}/${nx.xp} ${S.xp>=nx.xp?'✅':''} · ชื่อเสียง ${Math.round(S.rep)}/${nx.rep} ${S.rep>=nx.rep?'✅':''}</p>`:''}`;}
+    else{extra=`<div class="btns" style="margin-top:6px"><button data-a="special" data-x="${id}" ${S.help[id]===S.day||!w?'disabled':''}>${sp[0]} <small class="muted">(มิตรภาพ ${sp[1]})</small></button></div>`;
+      if((id==='james'||id==='fon')&&w){const can=fr>=40&&S.help['del_'+id]!==S.day;const list=id==='james'?S.tx.filter(t=>!t.trip):S.tx.filter(t=>fmeaCount(t)<10);
+        extra+=`<h3>🙏 ฝากงาน <small class="muted">(มิตรภาพ ≥ 40 · วันละครั้ง)</small></h3><div class="btns">${list.length?list.map(t=>`<button data-a="deleg" data-x="${id}|${t.id}" ${can?'':'disabled'}>${id==='james'?'🧪 เก็บน้ำมัน':'📊 FMEA'} ${t.id}</button>`).join(''):'<span class="muted">ไม่มีงานให้ฝาก</span>'}</div>`;}}
+    const romBtns=rom?`<h3>💕 ความสัมพันธ์</h3><div class="btns">
+      <button data-a="topic" data-x="${id}|flirt" ${fr>=35&&!tp?'':'disabled'}>😉 จีบ${fr<35?' (มิตรภาพ ≥ 35)':''}</button>
+      <button data-a="gift" data-x="${id}" ${(S.inv.gifts||0)>0&&!(S.gave&&S.gave[id]===S.day)?'':'disabled'}>🎁 ให้ของฝาก (${S.inv.gifts||0})</button>
+      <button data-a="invite" data-x="${id}" ${love>=20&&!(S.date&&S.date.day===S.day)?'':'disabled'}>🍽️ ชวนไปเดตเย็นนี้${love<20?' (💕 ≥ 20)':''}</button>
+      <button data-a="confess" data-x="${id}" ${S.rel[id]!=='partner'&&love>=55&&fr>=45?'':'disabled'}>💌 สารภาพรัก${S.rel[id]==='partner'?' (เป็นแฟนแล้ว)':' (💕 ≥ 55)'}</button></div>`:
+      `<div class="btns" style="margin-top:6px"><button data-a="gift" data-x="${id}" ${(S.inv.gifts||0)>0&&!(S.gave&&S.gave[id]===S.day)?'':'disabled'}>🎁 ให้ของฝาก (${S.inv.gifts||0})</button></div>`;
+    return `<h2>${id==='boss'?'👔 ':''}${n.name}</h2><p class="muted">${n.role} · ${relTxt(id)}</p>${frBar(id)}${rom?`<div class="fr">💕 ความรู้สึก <div class="sb"><i style="width:${love}%;background:#ff6fa8"></i></div><b style="color:var(--text)">${Math.round(love)}</b></div>`:''}
+    <div class="muted" style="margin-top:6px">ตอนนี้: ${np?npcActivity(np):''}</div>
+    <div class="chatv" id="convbox" style="max-height:230px;overflow:auto;border-radius:12px;margin-top:8px;min-height:80px">${conv||`<div class="bub">${pick(['ว่าไง มีอะไรเหรอ?','หวัดดี 😊','มีอะไรให้ช่วยไหม?'])}</div>`}</div>
+    ${tp?`<div class="qr" style="border-radius:10px;margin-top:6px">${tp.o.map((o,i)=>`<button data-a="tpick" data-x="${id}|${i}">${o[0]}</button>`).join('')}</div>`:
+     `<div class="btns" style="margin-top:8px"><button data-a="topic" data-x="${id}|chat">😄 ชวนคุยเรื่องทั่วไป</button><button data-a="topic" data-x="${id}|work">🔧 คุยเรื่องงาน</button></div>`}
+    <div style="display:flex;gap:6px;margin-top:8px"><input id="say" data-to="${id}" placeholder="พิมพ์คุยกับ ${n.name}…" style="flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:#0b1218;color:var(--text);font:inherit" ${W.talking?'disabled':''}><button class="pri" data-a="say" data-x="${id}">ส่ง</button></div>
+    <p class="muted" style="margin-top:4px">${AI?'🤖 พิมพ์คุยได้อิสระ ตัวละครตอบตามบุคลิก':'💬 พิมพ์คุยได้ (โหมดออฟไลน์: ตอบตามคีย์เวิร์ด)'} · แต่ละประโยคใช้เวลา 2 นาที</p>
+    ${romBtns}${extra}`;
+  };
+}
+
 /* ---------- boot ---------- */
 (function boot(){
   if(!window.THREE){$('#loading').innerHTML='⚠️ โหลดเอนจิน 3 มิติไม่สำเร็จ<br><span class="muted">ลองรีเฟรชหน้านี้อีกครั้ง</span>';return;}
   let loaded=load();if(loaded&&(S.over||!S.tx||!S.car)){loaded=false;}
+  if(loaded){S.love=S.love||{fon:5,james:5};S.rel=S.rel||{};S.conv=S.conv||{};S.topic=S.topic||{};S.tspeed=S.tspeed||2.5;S.inv.gifts=S.inv.gifts||0;}
   if(!loaded)newGame();
   initWorld();
   if(loaded&&S.px!==undefined){W.pl.x=S.px;W.pl.z=S.pz;W.driving=false;setLoc();collide(W.pl);}else place('estate');
